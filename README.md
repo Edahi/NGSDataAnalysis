@@ -24,7 +24,7 @@ Analysis  Overview:
 - _Processed_ reads are mapped to the reference genome with more permissive parametrs, such a higher insertion distance and slight more mismatches rate.
 - For comparison, _unmapped_ reads are quality-checked with [FASTQC](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/).
 - Both mapping results are merged and sorted using [samtools](http://samtools.sourceforge.net/).
-#### 3- Contamination assessment
+### 3- Contamination assessment
 - Unmapped reads are assembled with [velvet and velveth](https://www.ebi.ac.uk/~zerbino/velvet/)
 - The longest and more covered contigs are [_Blast_-ed](https://blast.ncbi.nlm.nih.gov/Blast.cgi) to assess any kind of contamination on the sample.
 ### 4-Cleaning
