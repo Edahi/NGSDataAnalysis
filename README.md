@@ -6,6 +6,8 @@ ATAC-Seq
 Assay for Transposase-Accessible Chromatin followed by Sequencing focus on the obtention of genomic regions that are not being wrapped by either nucleosomes or other cellular elements, meaning that they are "Accessible" for interaction with cellular elements.
 
 Analysis  Overview:
+
+0. (Optional) Download SRR.fastq.gz files
 1. Quality check of the sequencing data
 2. 2-step mapping
 3. Contamination exploration
@@ -13,6 +15,8 @@ Analysis  Overview:
 5. Sub-categories obtention
 6. Peak calling
 
+### 0- (Optional) Download SRR fastq data files
+- Download the compressed FASTQ files using [SRA-toolkit's](https://github.com/ncbi/sra-tools) fastq-dump.
 ### 1-Quality check
 - Sequencing lanes are merged before quality assessment
 - General sequencing quality, length, barcodes and different oddities are first analyzed through [FASTQC](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/)
