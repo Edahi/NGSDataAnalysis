@@ -17,10 +17,11 @@ Analysis  Overview:
 - Sequencing lanes are merged before quality assessment
 - General sequencing quality, length, barcodes and different oddities are first analyzed through [FASTQC](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/)
 ### 2-Step mapping
-1. 1st-step Mapping
+_1st-step Mapping_
 - _Raw_ reads are aligned to reference genome (e.g. mm10) using [Botwie1](http://bowtie-bio.sourceforge.net/manual.shtml)
 - Unmapped reads are processed with [cutadapt](https://cutadapt.readthedocs.io/en/stable/guide.html) through the use of [trim_galore!](https://www.bioinformatics.babraham.ac.uk/projects/trim_galore/). Low-quality bases are removed from 5'/3' and as minimum, 1bp is clipped from the 3'-end.
-2. 2nd-step Mapping
+
+_2nd-step Mapping_
 - _Processed_ reads are mapped to the reference genome with more permissive parametrs, such a higher insertion distance and slight more mismatches rate.
 - For comparison, _unmapped_ reads are quality-checked with [FASTQC](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/).
 - Both mapping results are merged and sorted using [samtools](http://samtools.sourceforge.net/).
