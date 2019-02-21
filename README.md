@@ -26,8 +26,8 @@ _2nd-step Mapping_
 - For comparison, _unmapped_ reads are quality-checked with [FASTQC](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/).
 - Both mapping results are merged and sorted using [samtools](http://samtools.sourceforge.net/).
 ### 3- Contamination assessment
-- Unmapped reads are assembled with [velvet and velveth](https://www.ebi.ac.uk/~zerbino/velvet/)
-- The longest and more covered contigs are [_Blast_-ed](https://blast.ncbi.nlm.nih.gov/Blast.cgi) to assess any kind of contamination on the sample.
+- Unmapped reads are assembled with [velvet and velveth](https://www.ebi.ac.uk/~zerbino/velvet/) into contigs.
+- The longest and more covered _Top 3_ contigs are [_Blast_-ed](https://blast.ncbi.nlm.nih.gov/Blast.cgi) to assess any kind of contamination on the sample.
 ### 4-Cleaning
 - Reads aligning to the mitochodrial chromosome are eliminated through the use of both [samtools](http://samtools.sourceforge.net/) and a cutsom [awk](https://www.gnu.org/software/gawk/manual/gawk.html) script.
 - Reads mapping to [ENCODE's blackliested regions](https://sites.google.com/site/anshulkundaje/projects/blacklists) are removed with [bedtools](https://bedtools.readthedocs.io/en/latest/).
