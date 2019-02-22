@@ -1,8 +1,4 @@
-# NGSDataAnalysis
-I have several scripts to download and process NSG datasets. It would be a good idea to share it with the world.
-
-ATAC-Seq
---------
+# ATAC-Seq
 Assay for Transposase-Accessible Chromatin followed by Sequencing focus on the obtention of genomic regions that are not being wrapped by either nucleosomes or other cellular elements, meaning that they are "Accessible" for interaction with cellular elements.
 
 ### 0- (Optional) Download SRR fastq data files
