@@ -1,0 +1,181 @@
+#!/bin/bash
+# ChIP-seq Standarized pipeline ChIPseq_mm10
+# >>>>>> Download Files
+# >>>>>> FASTQC
+# >>>>>> Mapping
+# >>>>>> Samtools sort
+# >>>>>> Whitelist
+# >>>>>> TagDirectory
+# >>>>>> Run ssp
+# >>>>>> UndetCat
+# >>>>>> Call Peaks
+
+#  Used in:
+#  (1) SRR5582480 NIH3T3
+#  (2) /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/Daniela/01.Pol2_TETs/README.AllThisChIPs.sh
+#  (7) 
+
+
+# >>> How to use the program:
+#    ChIPseq_mm10_SRR -c SRR5582480  
+#    ChIPseq_mm10_SRR -c SRR5582480 -r
+#    ChIPseq_mm10_SRR -c SRR5582480 -n NIH3T3
+#    ChIPseq_mm10_SRR -c SRR5582480 -d /BioScratch/edahi
+#    ChIPseq_mm10_SRR -c SRR5582480    -n NIH3T3          -d /BioScratch/edahi                 -r
+
+#    ChIPseq_mm10_SRR -c SRR code] || [-n Name def:chip] [-d directory def:/BioScratch/edahi] [-r Run created job def:no] [-h help]"
+usage()
+{
+    echo "usage: ChIPseq_mm10 [-r SRR code] || [-n Name def:chip] [-d directory def:/BioScratch/edahi] [-g Run created job def:no] [-h help]"
+}
+
+# >>> Check if arguments given:
+if [ "$1" == "" ]; then
+  usage
+  exit 1
+fi
+
+# >>> Declare Variables
+download=/BioScratch/edahi
+srr=
+name=chip
+run=0
+
+# >>> Assign arguments to variables
+while [ "$1" != "" ]; do
+    case $1 in
+        -c | --SRR )            shift
+                                srr=$1
+                                ;;
+        -n | --name )           shift
+                                name=$1
+                                ;;
+        -d | --download )       shift
+                                download=$1
+                                ;;
+        -r | --run    )         run=1
+                                ;;
+        -h | --help )           usage
+                                exit
+                                ;;
+        * )                     usage
+                                exit 1
+    esac
+    shift
+done
+
+TagDirs=$download/${name}_TagDir
+
+
+cat <<EOF> $download/${name}.ChIPseq.mm10.sh
+#!/bin/bash -ex
+#PBS -N ${name}.ChIPseq.mm10
+#PBS -l walltime=168:00:00
+#PBS -o $download/${name}.ChIPseq.mm10.out
+#PBS -e $download/${name}.ChIPseq.mm10.out
+#PBS -l nodes=1:ppn=2
+#PBS -M edahi@lji.org
+#PBS -l mem=10GB
+#PBS -q rao-exclusive
+#PBS -m ae
+
+#Variables:
+fastqc=/Bioinformatics/apps/FastQC/FastQC-0.11.2/fastqc
+mm10bwa=/home/edahi/download/genome/mm10/bwa/index/mm10_random/mm10.fa
+getPeaks=/share/apps/HOMER/bin/findPeaks
+makeTag=/share/apps/HOMER/bin/makeTagDirectory
+sam=/usr/bin/samtools
+mm10genome=/mnt/BioAdHoc/Groups/RaoLab/Bioinformatics/apps/Mus_musculus/UCSC/mm10/BowtieIndex/genome
+sam=/usr/bin/samtools
+fastqdump=/home/edahi/download/code/sra/sratoolkit.2.8.2-1-ubuntu64/bin/fastq-dump
+bowtie=/Bioinformatics/apps/bowtie/bowtie-1.0.0/bowtie
+trimgalore=/home/edahi/download/code/TrimGalore/0.3.8/trim_galore
+Ann=/home/edahi/download/code/HOMER/bin/annotatePeaks.pl
+genomesize=/mnt/BioAdHoc/Groups/RaoLab/Bioinformatics/apps/Mus_musculus/UCSC/mm10/BowtieIndex/genome.fa.sizes
+mMultiWig=/home/edahi/download/code/HOMER/bin/makeMultiWigHub.pl
+BLmm10=/mnt/BioAdHoc/Groups/RaoLab/Edahi/01.Genomes/Mus_musculus/UCSC/mm10/Sequence/Blacklist/mm10.blacklist.bed
+Btools=/mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/01.Downloaded/bedtools2/bin/bedtools
+MarkDup=/Bioinformatics/apps/picard-tools/picard-tools-1.94/MarkDuplicates.jar
+
+# From Script:
+download=$download
+srr=$srr
+name=$name
+run=$run
+TagDirs=$TagDirs
+
+
+#Action:
+# >>>>>> ChIP-seq analysis for \${name}
+mkdir \$download/\${name} -p
+cd    \$download
+
+# >>>>>> Download Files for \$name
+\$fastqdump --dumpbase --skip-technical --clip --outdir \$download -A \$srr
+mv \${srr}.fastq \${name}.fastq
+
+# >>>>>> FASTQC for downloaded file
+\$fastqc \${download}/\${name}.fastq --outdir=\$download
+
+
+# >>>>>> BWA aln'
+cd    \$download/\${name}
+/home/edahi/download/code/bwa/bwa aln \
+  -t 8 \
+  \$mm10bwa \
+  \${download}/\${name}.fastq  >  \$download/\${name}/\${name}.sai
+
+# >>>>>> BWA samse'
+/home/edahi/download/code/bwa/bwa samse  \$mm10bwa \$download/\${name}/\${name}.sai \
+  \${download}/\${name}.fastq > \$download/\${name}/\${name}.sam
+
+# >>>>>> Get Mapped (Header)'
+cat \$download/\${name}/\${name}.sam | grep "^@" > \$download/\${name}/\${name}.mapped.sam
+
+# >>>>>> Get Mapped 2 (Filter Reads)'
+cat \$download/\${name}/\${name}.sam | \$sam view -S -F 4 - | 
+  awk '\$14=="X0:i:1" &&  \$5>=30 && \$12=="XT:A:U" {split(\$1,id,"#"); split(\$13,editDistField,":"); if (editDistField[3] <= 2) {print}}' | 
+  sort -k 1,1 >>  \$download/\${name}/\${name}.mapped.sam
+
+# >>>>>> Samtools sort';
+\$sam view -bS \$download/\${name}/\${name}.mapped.sam | \$sam sort - -@ 8 \$download/\${name}/\${name}.mapped.sorted
+
+# >>>>>> Whitelist:
+\$Btools intersect -a \$download/\${name}/\${name}.mapped.sorted.bam -b \$BLmm10 -v > \$download/\${name}/\${name}.whitelist.bam
+
+# >>>>>> Remove Duplicates:
+java -jar \$MarkDup \
+   INPUT=\$download/\${name}/\${name}.whitelist.bam \
+   OUTPUT=\$download/\${name}/\${name}.whitelist_rmdup.bam \
+   METRICS_FILE=\$download/\${name}/\${name}_PicardMetrics.txt \
+   REMOVE_DUPLICATES=true \
+   ASSUME_SORTED=true
+
+# >>>>>> TagDirectory:
+\$makeTag \$TagDirs \$download/\${name}/\${name}.whitelist_rmdup.bam
+  \$sam view -F 0x0204 -o - \$download/\${name}/\${name}.whitelist_rmdup.bam | 
+    awk 'BEGIN{OFS="\t"}{if (and(\$2,16) > 0) {print \$3,(\$4-1),(\$4-1+length(\$10)),"N","1000","-"} else {print \$3,(\$4-1),(\$4-1+length(\$10)),"N","1000","+"} }' | 
+    gzip -c > \$download/\${name}.mapped.tagAlign.gz 
+
+# >>>>>> Run ssp
+/share/apps/R/3.1.0/bin/Rscript /home/edahi/download/code/phantompeakqualtools/run_spp.R \
+    -s=-100:5:600 \
+    -c=\$download/\${name}.mapped.tagAlign.gz -savp \
+    -out=\$download/\${name}.mapped.tagAlign.tab 
+
+# >>>>>> UndetCat
+cat \$download/\${name}.mapped.tagAlign.tab |awk '{print \$3}'|cut -d ',' -f 1 > \$download/\${name}.mapped.tagAlign.cat
+
+# >>>>>> Call Peaks'
+\$getPeaks \$TagDirs -style histone -region -nfr -o \$TagDirs/peaks.Histone.NFR.txt 
+\$getPeaks \$TagDirs -style histone -region      -o \$TagDirs/peaks.Histone.NoNFR.txt 
+\$getPeaks \$TagDirs -style factor               -o \$TagDirs/peaks.factor.txt 
+\$getPeaks \$TagDirs -style super   -region      -o \$TagDirs/peaks.super.txt
+EOF
+
+  
+# >>> Rscript to calculate Stats:
+if [ "$run" = "1" ]; then
+ echo "Running Job"
+ qsub $download/${name}.ChIPseq.mm10.sh
+fi

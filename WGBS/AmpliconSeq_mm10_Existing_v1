@@ -1,0 +1,263 @@
+#!/bin/bash
+
+# Amplicon-seq Standarized pipeline mm10: Version -- 01
+# Author: Edahi Gonzalez-Avalos
+# Email:  edahi@lji.org
+# Date:   2018.09.30
+# Versions logs
+# v1.
+#   (1)analyse data downloaded already [having the lanes separated] or 
+#   (2) linked it with the BSdownload script.
+#  Adaptions extend to (and require):
+#   1. Give the DIR of the current data [data should be separated by lanes]
+#   2. Give the NAME of the original
+#   3. Give the NAME desired for the report.
+
+# >>> How to use the program:
+#    AmpliconSeq_mm10_Existing_v1 -s PREFIX [-n Name def:Amplicon] [-d DownloadDir def:/BioScratch/edahi] [-a AnalysisDir def:/BioScratch/edahi] [-c Chromosome of Interest def:chrX] [-q rao-exclusive queue def:no] [-r Run created job def:no] [-h help]"
+# >>> Examples:
+# /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/AmpliconSeq_mm10_Existing_v1 -s TGFb_01_24h_BS_S1       -n TGFb_01_24h_BS      -d /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/00.TransferredData/Data -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/AmpliconSeq_JEMPaper -q -r
+# /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/AmpliconSeq_mm10_Existing_v1 -s TGFb_01_24h_oxBS_S9     -n TGFb_01_24h_oxBS    -d /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/00.TransferredData/Data -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/AmpliconSeq_JEMPaper -q -r
+# /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/AmpliconSeq_mm10_Existing_v1 -s TGFb_01_38h_BS_S3       -n TGFb_01_38h_BS      -d /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/00.TransferredData/Data -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/AmpliconSeq_JEMPaper -q -r
+# /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/AmpliconSeq_mm10_Existing_v1 -s TGFb_01_38h_oxBS_S11    -n TGFb_01_38h_oxBS    -d /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/00.TransferredData/Data -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/AmpliconSeq_JEMPaper -q -r
+# /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/AmpliconSeq_mm10_Existing_v1 -s TGFb_01_48h_BS_S5       -n TGFb_01_48h_BS      -d /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/00.TransferredData/Data -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/AmpliconSeq_JEMPaper -q -r
+# /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/AmpliconSeq_mm10_Existing_v1 -s TGFb_01_48h_oxBS_S13    -n TGFb_01_48h_oxBS    -d /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/00.TransferredData/Data -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/AmpliconSeq_JEMPaper -q -r
+# /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/AmpliconSeq_mm10_Existing_v1 -s TGFb_01_72h_BS_S7       -n TGFb_01_72h_BS      -d /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/00.TransferredData/Data -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/AmpliconSeq_JEMPaper -q -r
+# /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/AmpliconSeq_mm10_Existing_v1 -s TGFb_01_72h_oxBS_S15    -n TGFb_01_72h_oxBS    -d /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/00.TransferredData/Data -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/AmpliconSeq_JEMPaper -q -r
+# /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/AmpliconSeq_mm10_Existing_v1 -s TGFb_02_24h_BS_S1       -n TGFb_02_24h_BS      -d /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/00.TransferredData/Data -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/AmpliconSeq_JEMPaper -q -r
+# /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/AmpliconSeq_mm10_Existing_v1 -s TGFb_02_24h_oxBS_S9     -n TGFb_02_24h_oxBS    -d /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/00.TransferredData/Data -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/AmpliconSeq_JEMPaper -q -r
+# /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/AmpliconSeq_mm10_Existing_v1 -s TGFb_02_38h_BS_S3       -n TGFb_02_38h_BS      -d /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/00.TransferredData/Data -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/AmpliconSeq_JEMPaper -q -r
+# /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/AmpliconSeq_mm10_Existing_v1 -s TGFb_02_38h_oxBS_S11    -n TGFb_02_38h_oxBS    -d /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/00.TransferredData/Data -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/AmpliconSeq_JEMPaper -q -r
+# /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/AmpliconSeq_mm10_Existing_v1 -s TGFb_02_48h_BS_S5       -n TGFb_02_48h_BS      -d /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/00.TransferredData/Data -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/AmpliconSeq_JEMPaper -q -r
+# /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/AmpliconSeq_mm10_Existing_v1 -s TGFb_02_48h_oxBS_S13    -n TGFb_02_48h_oxBS    -d /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/00.TransferredData/Data -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/AmpliconSeq_JEMPaper -q -r
+# /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/AmpliconSeq_mm10_Existing_v1 -s TGFb_02_72h_BS_S7       -n TGFb_02_72h_BS      -d /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/00.TransferredData/Data -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/AmpliconSeq_JEMPaper -q -r
+# /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/AmpliconSeq_mm10_Existing_v1 -s TGFb_02_72h_oxBS_S15    -n TGFb_02_72h_oxBS    -d /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/00.TransferredData/Data -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/AmpliconSeq_JEMPaper -q -r
+# /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/AmpliconSeq_mm10_Existing_v1 -s TGFb_vc_01_24h_BS_S2    -n TGFb_vc_01_24h_BS   -d /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/00.TransferredData/Data -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/AmpliconSeq_JEMPaper -q -r
+# /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/AmpliconSeq_mm10_Existing_v1 -s TGFb_vc_01_24h_oxBS_S10 -n TGFb_vc_01_24h_oxBS -d /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/00.TransferredData/Data -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/AmpliconSeq_JEMPaper -q -r
+# /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/AmpliconSeq_mm10_Existing_v1 -s TGFb_vc_01_38h_BS_S4    -n TGFb_vc_01_38h_BS   -d /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/00.TransferredData/Data -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/AmpliconSeq_JEMPaper -q -r
+# /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/AmpliconSeq_mm10_Existing_v1 -s TGFb_vc_01_38h_oxBS_S12 -n TGFb_vc_01_38h_oxBS -d /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/00.TransferredData/Data -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/AmpliconSeq_JEMPaper -q -r
+# /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/AmpliconSeq_mm10_Existing_v1 -s TGFb_vc_01_48h_BS_S6    -n TGFb_vc_01_48h_BS   -d /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/00.TransferredData/Data -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/AmpliconSeq_JEMPaper -q -r
+# /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/AmpliconSeq_mm10_Existing_v1 -s TGFb_vc_01_48h_oxBS_S14 -n TGFb_vc_01_48h_oxBS -d /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/00.TransferredData/Data -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/AmpliconSeq_JEMPaper -q -r
+# /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/AmpliconSeq_mm10_Existing_v1 -s TGFb_vc_01_72h_BS_S8    -n TGFb_vc_01_72h_BS   -d /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/00.TransferredData/Data -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/AmpliconSeq_JEMPaper -q -r
+# /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/AmpliconSeq_mm10_Existing_v1 -s TGFb_vc_01_72h_oxBS_S16 -n TGFb_vc_01_72h_oxBS -d /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/00.TransferredData/Data -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/AmpliconSeq_JEMPaper -q -r
+# /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/AmpliconSeq_mm10_Existing_v1 -s TGFb_vc_02_24h_BS_S2    -n TGFb_vc_02_24h_BS   -d /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/00.TransferredData/Data -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/AmpliconSeq_JEMPaper -q -r
+# /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/AmpliconSeq_mm10_Existing_v1 -s TGFb_vc_02_24h_oxBS_S10 -n TGFb_vc_02_24h_oxBS -d /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/00.TransferredData/Data -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/AmpliconSeq_JEMPaper -q -r
+# /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/AmpliconSeq_mm10_Existing_v1 -s TGFb_vc_02_38h_BS_S4    -n TGFb_vc_02_38h_BS   -d /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/00.TransferredData/Data -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/AmpliconSeq_JEMPaper -q -r
+# /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/AmpliconSeq_mm10_Existing_v1 -s TGFb_vc_02_38h_oxBS_S12 -n TGFb_vc_02_38h_oxBS -d /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/00.TransferredData/Data -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/AmpliconSeq_JEMPaper -q -r
+# /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/AmpliconSeq_mm10_Existing_v1 -s TGFb_vc_02_48h_BS_S6    -n TGFb_vc_02_48h_BS   -d /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/00.TransferredData/Data -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/AmpliconSeq_JEMPaper -q -r
+# /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/AmpliconSeq_mm10_Existing_v1 -s TGFb_vc_02_48h_oxBS_S14 -n TGFb_vc_02_48h_oxBS -d /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/00.TransferredData/Data -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/AmpliconSeq_JEMPaper -q -r
+# /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/AmpliconSeq_mm10_Existing_v1 -s TGFb_vc_02_72h_BS_S8    -n TGFb_vc_02_72h_BS   -d /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/00.TransferredData/Data -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/AmpliconSeq_JEMPaper -q -r
+# /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/AmpliconSeq_mm10_Existing_v1 -s TGFb_vc_02_72h_oxBS_S16 -n TGFb_vc_02_72h_oxBS -d /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/00.TransferredData/Data -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/05.DemethylationDynamics/01.XYue_Data/AmpliconSeq_JEMPaper -q -r
+
+
+usage()
+{
+    printf "\nusage: /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/AmpliconSeq_mm10_Existing_v1 -s suffix from downloaded data"
+    printf "\n\t[-n | --name      Name                       def:Amplicon  ]"
+    printf "\n\t[-d | --download  DownloadPath               def:/mnt/beegfs ]"
+    printf "\n\t[-a | --analysis  AnalysisPath               def:/mnt/BioAdHoc/Groups/RaoLab/temp ]"
+    printf "\n\t[-t | --temp      TemporalPath               def:/mnt/BioScratch/edahi ]"
+    printf "\n\t[-c | --chrom     Chromosome of Interest     def:'chr' ]"
+    printf "\n\t[-q | --queue     set 'rao-exclusive' queue  def:'default' ]"
+    printf "\n\t[-r | --run       Run created job            def:no   ]"
+    printf "\n\t[-k | --keep      Keep intermediate results  def:no   ]"
+    printf "\n\t[-h | --help      Show this message and exit ]\n\n"
+}
+
+
+# >>> Check if arguments given:
+if [ "$1" == "" ]; then
+  usage
+  exit 1
+fi
+
+# >>> Declare Variables
+download=/mnt/beegfs
+analysis=/mnt/BioAdHoc/Groups/RaoLab/temp
+chrom=chr
+temp=/mnt/BioScratch/edahi
+surname=
+name=Amplicon
+run=0
+raoqueue=0
+keep=0
+
+# >>> Assign arguments to variables
+while [ "$1" != "" ]; do
+    case $1 in
+        -s | --PRE )            shift
+                                surname=$1
+                                ;;
+        -n | --name )           shift
+                                name=$1
+                                ;;
+        -d | --download )       shift
+                                download=$1
+                                ;;
+        -a | --analysis )       shift
+                                analysis=$1
+                                ;;
+        -t | --temp )           shift
+                                temp=$1
+                                ;;
+        -c | --chrom )          shift
+                                chrom=$1
+                                ;;
+        -q | --queue  )         raoqueue=1
+                                ;;
+        -k | --keep  )          keep=1
+                                ;;
+        -r | --run    )         run=1
+                                ;;
+        -h | --help )           usage
+                                exit
+                                ;;
+        * )                     usage
+                                exit 1
+    esac
+    shift
+done
+
+# >>> Check if SRR was given:
+if [ "$surname" = "" ]; then
+    printf "\n\tsurname is a required argument. Check --help for further assistance\n\n";
+    exit
+fi
+
+      Jobs=$analysis/Jobs
+  softlink=$analysis/01.Data
+   mapping=$analysis/02.Mapping
+  MethCall=$analysis/03.MethCall
+    Master=$analysis/04.Master
+       Lux=$analysis/05.luxGLM
+    FASTQC=$analysis/FASTQC
+  FASTQCun=$analysis/FASTQC_UnMap
+
+mkdir -p $Jobs
+
+cat <<EOF> $Jobs/${name}.AmpliconSeq.mm10.Existing.v1.sh
+#!/bin/bash -x
+#PBS -N ${name}.AmpliconSeq.mm10.Existing.v1
+#PBS -l walltime=168:00:00
+#PBS -o $Jobs/${name}.AmpliconSeq.mm10.Existing.v1.out
+#PBS -e $Jobs/${name}.AmpliconSeq.mm10.Existing.v1.out
+#PBS -j oe
+#PBS -l nodes=1:ppn=4
+#PBS -M edahi@lji.org
+#PBS -l mem=10GB
+#PBS -m ae
+EOF
+if [ "$raoqueue" = "1" ]; then
+ cat <<EOF>> $Jobs/${name}.AmpliconSeq.mm10.Existing.v1.sh
+#PBS -q rao-exclusive
+EOF
+else
+ cat <<EOF>> $Jobs/${name}.AmpliconSeq.mm10.Existing.v1.sh
+#PBS -q default
+EOF
+fi
+
+cat <<EOF>> $Jobs/${name}.AmpliconSeq.mm10.Existing.v1.sh
+
+export PATH=/share/apps/R/3.1.0/bin:/share/apps/python/python-3.4.6/bin:/share/apps/python/python-2.7.13/bin:/share/apps/perl/perl-5.18.1-threaded/bin/:/share/apps/gcc/6.3/bin:/mnt/BioApps/pigz/latest/bin:/share/apps/bin:/usr/local/maui/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/opt/stack/bin:/share/apps/java/latest/bin:/share/apps/bowtie/bowtie2-2.1.0:/share/apps/bowtie/bowtie-1.1.2:/usr/local/cuda/bin:/share/apps/dos2unix/latest/bin:/share/apps/bedtools/bin:/share/apps/HOMER/bin
+printf "PATH Used:\n\$PATH\n\n"
+unset PYTHONPATH
+
+#Variables:
+    bowtie=/Bioinformatics/apps/bowtie/bowtie-1.0.0/bowtie
+    fastqc=/Bioinformatics/apps/FastQC/FastQC-0.11.2/fastqc
+   MarkDup=/Bioinformatics/apps/picard-tools/picard-tools-1.94/MarkDuplicates.jar
+     bsmap=/home/edahi/download/code/bsmap-2.90/bsmap
+       Ann=/home/edahi/download/code/HOMER/bin/annotatePeaks.pl
+  getPeaks=/home/edahi/download/code/HOMER/bin/findPeaks
+ mMultiWig=/home/edahi/download/code/HOMER/bin/makeMultiWigHub.pl
+   makeTag=/home/edahi/download/code/HOMER/bin/makeTagDirectory
+ fastqdump=/home/edahi/download/code/sra/sratoolkit.2.8.2-1-ubuntu64/bin/fastq-dump
+trimgalore=/home/edahi/download/code/TrimGalore/0.3.8/trim_galore
+   mm10bwa=/home/edahi/download/genome/mm10/bwa/index/mm10_random/mm10.fa
+    Mratio=/home/edahi/usr/bin/methratio.py
+mm10genome=/mnt/BioAdHoc/Groups/RaoLab/Bioinformatics/apps/Mus_musculus/UCSC/mm10/BowtieIndex/genome
+ mm10phage=/home/edahi/download/genome/mm10r_phage/genome.fa
+genomesize=/mnt/BioAdHoc/Groups/RaoLab/Bioinformatics/apps/Mus_musculus/UCSC/mm10/BowtieIndex/genome.fa.sizes
+    Btools=/mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/01.Downloaded/bedtools2/bin/bedtools
+    makeBG=/mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/01.Downloaded/HOMER/bin/makeUCSCfile
+    RunSPP=/mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/01.Downloaded/phantompeakqualtools/run_spp.R
+    BLmm10=/mnt/BioAdHoc/Groups/RaoLab/Edahi/01.Genomes/Mus_musculus/UCSC/mm10/Sequence/Blacklist/mm10.blacklist.bed
+     Mcall=/share/apps/moab/bin/mcall
+      py27=/share/apps/python/python-2.7.13/bin/python
+     MACS2=/share/apps/python/python-2.7.6/bin/macs2
+     bg2bw=/share/apps/UCSC/bedGraphToBigWig
+    BamCov=/home/edahi/.local/bin/bamCoverage
+   Rscript=/share/apps/R/3.1.0/bin/Rscript
+	  samF=/share/apps/samtools
+       sam=/usr/bin/samtools
+
+
+# From Script:
+
+  download=$download
+   surname=$surname
+      name=$name
+     chrom=$chrom
+      Jobs=$Jobs
+  softlink=$softlink
+   mapping=$mapping
+  MethCall=$MethCall
+    Master=$Master
+       Lux=$Lux
+    FASTQC=$FASTQC
+  FASTQCun=$FASTQCun
+      keep=$keep
+      temp=$temp
+
+# Generate Directories Framework:
+mkdir -p \$softlink \$mapping/\${name} \$MethCall/\${name} \$Master \$Lux \$FASTQC
+
+# >>>>>> Merge files from same lane:
+# zcat $download/\${surname}_L00*_R1*fastq.gz | gzip > \$temp/\${name}_R1.fastq.gz
+# zcat $download/\${surname}_L00*_R2*fastq.gz | gzip > \$temp/\${name}_R2.fastq.gz
+zcat \$download/\${surname}_L00*_R1*fastq.gz  > \$temp/\${name}_R1.fastq
+zcat \$download/\${surname}_L00*_R2*fastq.gz  > \$temp/\${name}_R2.fastq
+
+# >>>>>> Create Softlinks for ${name}
+ln -s \$temp/\${name}_R1.fastq \${softlink}/${name}_R1.fastq
+ln -s \$temp/\${name}_R2.fastq \${softlink}/${name}_R2.fastq
+
+# >>>>>> FASTQC for downloaded files
+\$fastqc \${softlink}/\${name}_R1.fastq --outdir=\$FASTQC &
+\$fastqc \${softlink}/\${name}_R2.fastq --outdir=\$FASTQC &
+
+# >>>>>> Mapping
+cd       \$mapping/\${name}
+\$bsmap -a \$temp/\${name}_R1.fastq -b \$temp/\${name}_R2.fastq -d \$mm10phage -o \$mapping/\${name}/\${name}.sam -v 15 -w 3 -p 4 -S 1921 -q 20 -r 0 -R -V 2 > \$mapping/\${name}/bsmap_log.txt
+
+
+# >>>>>> Separate Lambda from mm10 Genome mapping results.
+grep    chrPhagueLambda \$mapping/\${name}/\${name}.sam > \$mapping/\${name}/\${name}.Lambda.sam
+grep -v chrPhagueLambda \$mapping/\${name}/\${name}.sam > \$mapping/\${name}/\${name}.mm10.sam
+
+# >>>>>> Remove noise from Lambda reads and further filtering based on control regions (C / mC / hmC).
+\$sam view -S -h -L /home/edahi/download/genome/mm10r_phage/Lambda_C.bed   \$mapping/\${name}/\${name}.Lambda.sam | grep -v \$chrom > \$mapping/\${name}/\${name}.Lambda.C.sam 
+\$sam view -S -h -L /home/edahi/download/genome/mm10r_phage/Lambda_mC.bed  \$mapping/\${name}/\${name}.Lambda.sam | grep -v \$chrom > \$mapping/\${name}/\${name}.Lambda.mC.sam 
+\$sam view -S -h -L /home/edahi/download/genome/mm10r_phage/Lambda_hmC.bed \$mapping/\${name}/\${name}.Lambda.sam | grep -v \$chrom > \$mapping/\${name}/\${name}.Lambda.hmC.sam 
+
+# >>>>>> Obtain proxi of bisulfite and Ox threatments
+\$Mcall -m \$mapping/\${name}/\${name}.Lambda.C.sam    --statsOnly 1
+\$Mcall -m \$mapping/\${name}/\${name}.Lambda.mC.sam   --statsOnly 1
+\$Mcall -m \$mapping/\${name}/\${name}.Lambda.hmC.sam  --statsOnly 1
+\$Mcall -m \$mapping/\${name}/\${name}.mm10.sam        --statsOnly 1
+
+# >>>>>> Methylation Calls
+\$Mratio -o \$MethCall/\${name}/\${name}.Sample.meth.CG     -d \$mm10phage                      -s \$samF -u -i "correct" -x CG         -g \$mapping/\${name}/\${name}.mm10.sam       > \$MethCall/\${name}/\${name}.Methratio.Sample.log 
+\$Mratio -o \$MethCall/\${name}/\${name}.Lambda.C.meth.CG   -d \$mm10phage  -c chrPhagueLambda  -s \$samF -u -i "correct" -x CG,CHG,CHH    \$mapping/\${name}/\${name}.Lambda.C.sam   > \$MethCall/\${name}/\${name}.Methratio.Lambda.C.log 
+\$Mratio -o \$MethCall/\${name}/\${name}.Lambda.mC.meth.CG  -d \$mm10phage  -c chrPhagueLambda  -s \$samF -u -i "correct" -x CG,CHG,CHH    \$mapping/\${name}/\${name}.Lambda.mC.sam  > \$MethCall/\${name}/\${name}.Methratio.Lambda.mC.log 
+\$Mratio -o \$MethCall/\${name}/\${name}.Lambda.hmC.meth.CG -d \$mm10phage  -c chrPhagueLambda  -s \$samF -u -i "correct" -x CG,CHG,CHH    \$mapping/\${name}/\${name}.Lambda.hmC.sam > \$MethCall/\${name}/\${name}.Methratio.Lambda.hmC.log 
+\$Mratio -o \$MethCall/\${name}/\${name}.Lambda.All.meth.CG -d \$mm10phage  -c chrPhagueLambda  -s \$samF -u -i "correct" -x CG,CHG,CHH    \$mapping/\${name}/\${name}.Lambda.sam     > \$MethCall/\${name}/\${name}.Methratio.Lambda.All.log 
+
+EOF
+  
+# >>> If selected, Run job
+if [ "$run" = "1" ]; then
+# echo "Running Job"
+ qsub $Jobs/${name}.AmpliconSeq.mm10.Existing.v1.sh
+fi

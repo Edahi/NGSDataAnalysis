@@ -1,0 +1,117 @@
+#!/bin/bash
+
+# HiC-seq Standarized pipeline HiC_mm10
+# >>>>>> Download Files
+# >>>>>> FASTQC
+# >>>>>> HiC-Pro
+#  Used in:
+#  (1) 
+#
+
+# >>> How to use the program:
+#    HiC_SRR_mm10_MboI_v1 [-c SRR code] [-n Name def:HiC] [-d DownloadDir def:/BioScratch/edahi] [-a AnalysisDir def:/BioScratch/edahi] [-r Run created job def:no] [-h help]"
+
+usage()
+{
+    echo "usage: /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/HiC_SRR_mm10_MboI_v1 [-c SRR code] [-n Name def:HiC] [-d DownloadDir def:/BioScratch/edahi]  [-a AnalysisDir def:/BioScratch/edahi]  [-r Run created job def:no] [-h help]"
+}
+
+# >>> Check if arguments given:
+if [ "$1" == "" ]; then
+  usage
+  exit 1
+fi
+
+# >>> Declare Variables
+srr=
+name=HiC
+download=/BioScratch/edahi
+analysis=/BioScratch/edahi
+run=0
+
+# >>> Assign arguments to variables
+while [ "$1" != "" ]; do
+    case $1 in
+        -c | --SRR )            shift
+                                srr=$1
+                                ;;
+        -n | --name )           shift
+                                name=$1
+                                ;;
+        -d | --download )       shift
+                                download=$1
+                                ;;
+        -a | --analysis )       shift
+                                analysis=$1
+                                ;;
+        -r | --run    )         run=1
+                                ;;
+        -h | --help )           usage
+                                exit
+                                ;;
+        * )                     usage
+                                exit 1
+    esac
+    shift
+done
+
+Jobs=$analysis/Jobs
+FASTQC=$analysis/FASTQC
+softlink=$analysis/01.Data
+analysis=$analysis/02.Analysis
+
+mkdir -p $Jobs
+
+cat <<EOF> $Jobs/${name}.HiC.mm10.sh
+#!/bin/bash -ex
+#PBS -N ${name}.HiC.mm10
+#PBS -l walltime=168:00:00
+#PBS -o $Jobs/${name}.HiC.mm10.out
+#PBS -e $Jobs/${name}.HiC.mm10.out
+#PBS -l nodes=1:ppn=2
+#PBS -M edahi@lji.org
+#PBS -l mem=15GB
+#PBS -q rao-exclusive
+#PBS -m ae
+
+export PATH=/share/apps/R/3.1.0/bin:/share/apps/python/python-3.4.6/bin:/share/apps/python/python-2.7.13/bin:/share/apps/perl/perl-5.18.1-threaded/bin/:/share/apps/gcc/6.3/bin:/mnt/BioApps/pigz/latest/bin:/share/apps/bin:/usr/local/maui/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/opt/stack/bin:/share/apps/java/latest/bin:/share/apps/bowtie/bowtie2-2.1.0:/share/apps/bowtie/bowtie-1.1.2:/usr/local/cuda/bin:/share/apps/dos2unix/latest/bin:/share/apps/bedtools/bin:/share/apps/HOMER/bin
+echo \$PATH
+unset PYTHONPATH
+
+# Variables:
+   fastqc=/Bioinformatics/apps/FastQC/FastQC-0.11.2/fastqc
+   HiCPro=/home/edahi/download/code/HiC-Pro-master_py2.7/bin/HiC-Pro
+fastqdump=/home/edahi/download/code/sra/sratoolkit.2.8.2-1-ubuntu64/bin/fastq-dump
+    
+# From Script:
+ download=$download
+ softlink=$softlink
+ analysis=$analysis
+   FASTQC=$FASTQC
+     Jobs=$Jobs
+     name=$name
+      srr=$srr
+
+\$fastqdump --dumpbase --split-files --skip-technical --clip --outdir $download --split-3 -A \$srr
+
+# >>>>>> Create Softlinks for ${name}'
+mkdir -p \${softlink}/\${name}/\${name}
+ln -s \$download/\${srr}_1.fastq \${softlink}/\${name}/\${name}/\${name}_R1.fastq
+ln -s \$download/\${srr}_2.fastq \${softlink}/\${name}/\${name}/\${name}_R2.fastq
+
+# >>>>>> FASTQC for downloaded files
+mkdir -p \$FASTQC
+\$fastqc \${softlink}/\${name}/\${name}/\${name}_R1.fastq \${softlink}/\${name}/\${name}/\${name}_R2.fastq --outdir=\$FASTQC
+
+# >>>>>> Run HiC-Pro for ${name}
+\$HiCPro \
+ -i \${softlink}/\${name} \
+ -o \${analysis}/\${name} \
+ -c /home/edahi/download/code/HiC-Pro-master_py2.7/HiC_ConfigFile_mm10_MboI.txt
+EOF
+  
+# >>> Rscript to calculate Stats:
+if [ "$run" = "1" ]; then
+ echo "Running Job"
+ qsub $Jobs/${name}.HiC.mm10.sh
+fi
