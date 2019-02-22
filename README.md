@@ -32,7 +32,7 @@ Analysis overview:
 
 Hi-C
 ----
-
+Hi-C allows unbiased identification of chromatin interactions across an entire genome.
 
 WGBS
 ----
