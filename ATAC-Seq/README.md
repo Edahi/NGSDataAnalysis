@@ -7,7 +7,7 @@ Assay for Transposase-Accessible Chromatin followed by Sequencing focus on the o
 ### 1- Quality check
 - Sequencing lanes are merged before quality assessment
 - General sequencing quality, length, barcodes and different oddities are first analyzed through [FASTQC](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/)
-<img src="/ATAC-Seq/Images/00.QualityControl.png" width="200">
+<img src="/ATAC-Seq/Images/00.QualityControl.png">
 On the left figure is the data you DON'T want to ideally work with. It is totally worth discussing with your peers about what could have happened that caused the high noise.
 The left figure illustrates the importance of visualizing your raw data.
 This particularly important if you are working with public data. It is likely that the authors submitted the raw data and therefore did not remove the barcodes as the one illustrated here.
@@ -22,7 +22,7 @@ _2nd-step Mapping_
 - _Processed_ reads are mapped to the reference genome with more permissive parametrs, such a higher insertion distance and slight more mismatches rate.
 - For comparison, _unmapped_ reads are quality-checked with [FASTQC](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/).
 - Both mapping results are merged and sorted using [samtools](http://samtools.sourceforge.net/).
-<img src="/ATAC-Seq/Images/01.2StepMapping.png" width="300" height="100">
+<img src="/ATAC-Seq/Images/01.2StepMapping.png">
 Ocassionally, it might be questionable to use this strategy. Personally I think it is nor painstaking neither really time consuming and the benefits widely varies depending the samples themselves.
 Illustrated here is the **Gain** of performing the 2-Step mapping, on the first row, there is close to 5% gain, on the second row, I gained close to 17% (the most common scenario) and on the third one I gained almost double the information, 90%.
 The reason to align the data w/o any initial trimming or filtering is because not all reads needs it. Let map all the raw data and apply the filter to those that didn't make it.
@@ -35,7 +35,8 @@ The reason to align the data w/o any initial trimming or filtering is because no
 There are two strategies to perform ATAC-Seq.
 1. Using a buffer to reduce Mitochondrial contamination and 
 2. Don't.
-which are [omniATAC-Seq]() and [ATAC-Seq]() respectively. The advantages of using one versus the other are better illustrated in my figure below. 
+
+which are [omniATAC-Seq](https://www.nature.com/articles/nmeth.4396) and [ATAC-Seq](https://currentprotocols.onlinelibrary.wiley.com/doi/full/10.1002/0471142727.mb2129s109) respectively. The advantages of using one versus the other are better illustrated in my figure below. 
 <img src="/ATAC-Seq/Images/04.Filtering.png">
 Each row illustrates the mapping results and then the reads that reamins after the respective filters.
 The final two columns indicate the data loss and the methodology used to obtain the sequencing reads.
