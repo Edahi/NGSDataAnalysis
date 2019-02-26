@@ -2,7 +2,7 @@
 Assay for Transposase-Accessible Chromatin followed by Sequencing focus on the obtention of genomic regions that are not being wrapped by either nucleosomes or other cellular elements, meaning that they are "Accessible" for interaction with cellular elements.
 
 ### 0- (Optional) Download SRR fastq data files
-- Download the compressed FASTQ files using [SRA-toolkit's](https://github.com/ncbi/sra-tools) fastq-dump.
+- Download the FASTQ files using [SRA-toolkit's](https://github.com/ncbi/sra-tools) fastq-dump.
 
 ### 1- Quality check
 - Sequencing lanes are merged before quality assessment
@@ -56,3 +56,6 @@ Should you have data that looks more like a flat slope, you might need to discus
 - [HOMER](http://homer.ucsd.edu/homer/ngs/tagDir.html) tag directories are generated for the filtered reads and the subnucleosomal pairs. 
 - Using these tagDirectories, peaks are called using the [findPeaks](http://homer.ucsd.edu/homer/ngs/peaks.html) parameters " -style dnase -region -nfr ".
 
+## Version changes:
+
+### (1.0.0)
