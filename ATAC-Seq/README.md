@@ -9,9 +9,10 @@ Assay for Transposase-Accessible Chromatin followed by Sequencing focus on the o
 - General sequencing quality, length, barcodes and different oddities are first analyzed through [FASTQC](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/)
 <img src="/ATAC-Seq/Images/00.QualityControl.png">
 On the left figure is the data you DON'T want to ideally work with. It is totally worth discussing with your peers about what could have happened that caused the high noise.
-The left figure illustrates the importance of visualizing your raw data.
-This particularly important if you are working with public data. It is likely that the authors submitted the raw data and therefore did not remove the barcodes as the one illustrated here.
-Dececting these variations early helps to transition smoothly to the Differential Accessibility analysis.
+The middle graph is thehow average well-done data usually looks like. 
+The left figure illustrates the importance of visualizing your raw data, which is particularly important if you are working with data of public origins ([GEO](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi), etc.
+It is likely that the authors submitted the raw data and therefore did not remove the barcodes as the one illustrated here.
+Early detection of these variations usually leads to a smooth transition to the Differential Accessibility analysis.
 
 ### 2- Step mapping
 _1st-step Mapping_
@@ -24,9 +25,9 @@ _2nd-step Mapping_
 - For comparison, _unmapped_ reads are quality-checked with [FASTQC](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/).
 - Both mapping results are merged and sorted using [samtools](http://samtools.sourceforge.net/).
 <img src="/ATAC-Seq/Images/01.2StepMapping.png">
-Ocassionally, it might be questionable to use this strategy. Personally I think it is nor painstaking neither really time consuming and the benefits widely varies depending the samples themselves.
-Illustrated here is the *Gain* of performing the 2-Step mapping, on the first row, there is close to 5% gain, on the second row, I gained close to 17% (the most common scenario) and on the third one I gained almost double the information, 90%.
-The reason to align the data w/o any initial trimming or filtering is because not all reads needs it. Let map all the raw data and apply the filter to those that didn't make it.
+It might be questionable to use this strategy all of the time. Personally I think it is nor painstaking neither time consuming and the benefits widely varies depending the samples themselves.
+Illustrated here is the *Gain* of performing the 2-Step mapping, on the first row, there is close to 5% gain, on the second row, I gained close to 17% (the most common scenario) and on the third one I gained almost double the information (90%) than that of mapping the raw reads only.
+The reason to align the data without any initial trimming or filtering is because not all reads needs it. Let map all the raw data and apply the filter to those that didn't make it.
 
 ### 3- Cleaning
 - Reads aligning to the mitochodrial chromosome are eliminated through the use of both [samtools](http://samtools.sourceforge.net/) and a cutsom [awk](https://www.gnu.org/software/gawk/manual/gawk.html) script.
