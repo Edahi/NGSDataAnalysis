@@ -32,10 +32,10 @@ The reason to align the data without any initial trimming or filtering is becaus
 ### 3- Contamination assessment
 - Unmapped reads are assembled with [velvet and velveth](https://www.ebi.ac.uk/~zerbino/velvet/) into contigs.
 - The longest and more covered _Top 3_ contigs are [_Blast_-ed](https://blast.ncbi.nlm.nih.gov/Blast.cgi) to assess any kind of contamination on the sample.
-<img src="ATAC-Seq/Images/02.ContaminationAnalysis.png" width="300" height="100">
+<img src="/ATAC-Seq/Images/02.ContaminationAnalysis.png" width="300" height="100">
 You can definitely skip this if your mapping results are around and above the 70%. Is your data is way below that, it might be worthy to further investigate possible conntamination sources.
 On the middle row the sample is oddily unmapping to the reference genome. I took this one and proceed as described to determine that this sample was effectively contaminated with salmon DNA.
-<img src="ATAC-Seq/Images/03.ContaminationAnalysisIllustration.png" width="300" height="150">
+<img src="/ATAC-Seq/Images/03.ContaminationAnalysisIllustration.png" width="300" height="150">
 It is important to discuss results with your peers so you can narrow down all of the multiple possibilities.
 
 ### 4- Cleaning
@@ -75,7 +75,7 @@ Should you have data that looks more like a flat slope, you might need to discus
 - Using these tagDirectories, peaks are called using the [findPeaks](http://homer.ucsd.edu/homer/ngs/peaks.html) parameters " -style dnase -region -nfr ".
 - Accessible peaks from the subnucleosomal reads data are also obtained with [MACS2](https://github.com/taoliu/MACS) parameters "-g mm -q 0.0001  --keep-dup all --nomodel --call-summits".
 - MACS2 peaks summits (deconvolve subpeaks within each peak) are extend 200 bp each and resulting peaks are merged among samples (Master set)
-<img src="/ATAC-Seq/Images/06.DefineAccessibleRegions">
+<img src="/ATAC-Seq/Images/06.DefineAccessibleRegions.png">
 The longest white lines above the smaller are the initial peaks called by MACS2, by obtaining the smallest lines, called summit (re-analysing peak-shape and defining "sub"-peaks) we can perform analysis with greater granularity.
 
 ## Version changes:
