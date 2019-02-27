@@ -78,6 +78,18 @@ Should you have data that looks more like a flat slope, you might need to discus
 <img src="/ATAC-Seq/Images/06.DefineAccessibleRegions.png">
 The longest white lines above the smaller are the initial peaks called by MACS2, by obtaining the smallest lines, called summit (re-analysing peak-shape and defining "sub"-peaks) we can perform analysis with greater granularity.
 
+Differential Accessible Regions (DARs).
+---------------------------------------
+There are multiple ways to detect significant differences among a set of conditions. Here I propose the use of Limmma's normalization methods _voom_. Below the detailed description of how I obtain DARs.
+1. Use peaks masterset to obtain Tn5 insertions per sample
+2. Voom-normalize the data
+3. Use Limma for statistical comparisons
+
+- Adjusted p value < 0.05
+- minimum absolute log2-fold-change of 1 (2 times more signal in one sample vs the other).
+<img src="/ATAC-Seq/Images/07.DARs.png">
+
+
 ## Version changes:
 
 ### (4.0.0) -- 2019/02/19
