@@ -57,6 +57,7 @@ Should you have data that looks more like a flat slope, you might need to discus
 ### 6- Peak calling
 - [HOMER](http://homer.ucsd.edu/homer/ngs/tagDir.html) tag directories are generated for the filtered reads and the subnucleosomal pairs. 
 - Using these tagDirectories, peaks are called using the [findPeaks](http://homer.ucsd.edu/homer/ngs/peaks.html) parameters " -style dnase -region -nfr ".
+- Accessible peaks from the subnucleosomal reads data are also obtained with [MACS2](https://github.com/taoliu/MACS) parameters "-g mm -q 0.05  --keep-dup all --nomodel". 
 
 ### 7. Generate Genome-Browser tracks
 - From the tagDirectories [makeUCSCfile](http://homer.ucsd.edu/homer/ngs/ucsc.html) is used to auto-generate a bedGraph.gz file with a factor size of 1e20 
@@ -65,6 +66,12 @@ Should you have data that looks more like a flat slope, you might need to discus
 - A proper track line describing the sample and its location on the server is generated
 
 ## Version changes:
+
+### (3.0.0) -- 2018/10/22
+- Corrected minor filename conveniences (Add HOMER prefix to HOMER peaks)
+- Corrected missing backslash to make final file consistent with template format
+- Added MACS2 program and peaks
+- Renamed folder "06.HOMER_Peaks" by "06.Peaks" given MACS2 peaks introduction.
 
 ### (2.0.0) -- 2018/06/28
 - Data downloaded now is compressed
