@@ -14,6 +14,7 @@ Analysis  Overview:
 4. Fragment-Length estimation
 5. Sub-categories obtention
 6. Peak calling
+7. Generate UCSC genome browser tracks
 
 ChIP-Seq
 --------
