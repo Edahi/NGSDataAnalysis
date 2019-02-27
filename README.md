@@ -10,11 +10,12 @@ Analysis  Overview:
 0. (Optional) Download SRR.fastq.gz files
 1. Quality check of the sequencing data
 2. 2-step mapping
-3. Cleaning
-4. Fragment-Length estimation
-5. Sub-categories obtention
-6. Peak calling
+3. Contamination assessment
+4. Cleaning
+5. Fragment-Length estimation
+6. Sub-categories obtention
 7. Generate UCSC genome browser tracks
+8. Peak calling
 
 ChIP-Seq
 --------
