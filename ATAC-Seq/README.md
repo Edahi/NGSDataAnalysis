@@ -16,7 +16,8 @@ Dececting these variations early helps to transition smoothly to the Differentia
 ### 2- Step mapping
 _1st-step Mapping_
 - _Raw_ reads are aligned to reference genome (e.g. mm10) using [Botwie1](http://bowtie-bio.sourceforge.net/manual.shtml)
-- Unmapped reads are processed with [cutadapt](https://cutadapt.readthedocs.io/en/stable/guide.html) through the use of [trim_galore!](https://www.bioinformatics.babraham.ac.uk/projects/trim_galore/). Low-quality bases are removed from 5'/3' and as minimum, 1bp is clipped from the 3'-end.
+- Unmapped reads are processed with [cutadapt](https://cutadapt.readthedocs.io/en/stable/guide.html) through the use of [trim_galore!](https://www.bioinformatics.babraham.ac.uk/projects/trim_galore/). 
+Low-quality bases are removed from 5'/3' and as minimum, 1bp is clipped from the 3'-end.
 
 _2nd-step Mapping_
 - _Processed_ reads are mapped to the reference genome with more permissive parametrs, such a higher insertion distance and slight more mismatches rate.
@@ -24,7 +25,7 @@ _2nd-step Mapping_
 - Both mapping results are merged and sorted using [samtools](http://samtools.sourceforge.net/).
 <img src="/ATAC-Seq/Images/01.2StepMapping.png">
 Ocassionally, it might be questionable to use this strategy. Personally I think it is nor painstaking neither really time consuming and the benefits widely varies depending the samples themselves.
-Illustrated here is the **Gain** of performing the 2-Step mapping, on the first row, there is close to 5% gain, on the second row, I gained close to 17% (the most common scenario) and on the third one I gained almost double the information, 90%.
+Illustrated here is the *Gain* of performing the 2-Step mapping, on the first row, there is close to 5% gain, on the second row, I gained close to 17% (the most common scenario) and on the third one I gained almost double the information, 90%.
 The reason to align the data w/o any initial trimming or filtering is because not all reads needs it. Let map all the raw data and apply the filter to those that didn't make it.
 
 ### 3- Cleaning
@@ -33,14 +34,14 @@ The reason to align the data w/o any initial trimming or filtering is because no
 - PCR duplicates are removed with [Picard-tools](https://broadinstitute.github.io/picard/)
 
 There are two strategies to perform ATAC-Seq.
-1. Using a buffer to reduce Mitochondrial contamination and 
+1. Using a buffer to reduce Mitochondrial material and 
 2. Don't.
 
 which are [omniATAC-Seq](https://www.nature.com/articles/nmeth.4396) and [ATAC-Seq](https://currentprotocols.onlinelibrary.wiley.com/doi/full/10.1002/0471142727.mb2129s109) respectively. The advantages of using one versus the other are better illustrated in my figure below. 
 <img src="/ATAC-Seq/Images/04.Filtering.png">
 Each row illustrates the mapping results and then the reads that reamins after the respective filters.
 The final two columns indicate the data loss and the methodology used to obtain the sequencing reads.
-The top three rows had a loss of **above 50% mapped reads**. The bottom four had a loss of **less than 8%**. The difference was the methodology.
+The top three rows had a loss of *above 50% mapped reads*. The bottom four had a loss of *less than 8%*. The difference was the methodology.
 
 ### 4- Fragment-length estimation
 - Filtered reads are used to calculate the distance among read pairs. You may wish to contact [Xi Chen](mailto:xi.chen.xchen@gmail.com)
@@ -56,6 +57,20 @@ Should you have data that looks more like a flat slope, you might need to discus
 - [HOMER](http://homer.ucsd.edu/homer/ngs/tagDir.html) tag directories are generated for the filtered reads and the subnucleosomal pairs. 
 - Using these tagDirectories, peaks are called using the [findPeaks](http://homer.ucsd.edu/homer/ngs/peaks.html) parameters " -style dnase -region -nfr ".
 
+### 7. Generate Genome-Browser tracks
+- From the tagDirectories [makeUCSCfile](http://homer.ucsd.edu/homer/ngs/ucsc.html) is used to auto-generate a bedGraph.gz file with a factor size of 1e20 
+- Decompress bedGraph.gz, head-trim and sorted by chromose and position to generate a proper bedGraph file.
+- UCSC's [bedGraphToBigWig](https://genome.ucsc.edu/goldenpath/help/bigWig.html) the proper bedGraph to generate a bigWig file.
+- A proper track line describing the sample and its location on the server is generated
+
 ## Version changes:
 
-### (1.0.0)
+### (2.0.0) -- 2018/06/28
+- Data downloaded now is compressed
+- Added summary statistics to track mapping results
+- Changed the order between removing duplicates and filtering blacklisted regions
+- Renamed TagAlign to Fragment Length Estimate
+- Added code necessary to generate BigWigs
+- Added option to remove intermediate files at the end
+- Add Genome Browser tracks || Experimental with Tn5_9bp
+- Added code to check if SRR was given
