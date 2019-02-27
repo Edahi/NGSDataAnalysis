@@ -32,10 +32,10 @@ The reason to align the data without any initial trimming or filtering is becaus
 ### 3- Contamination assessment
 - Unmapped reads are assembled with [velvet and velveth](https://www.ebi.ac.uk/~zerbino/velvet/) into contigs.
 - The longest and more covered _Top 3_ contigs are [_Blast_-ed](https://blast.ncbi.nlm.nih.gov/Blast.cgi) to assess any kind of contamination on the sample.
-<img src="/ATAC-Seq/Images/02.ContaminationAnalysis.png" width="300" height="100">
+<img src="/ATAC-Seq/Images/02.ContaminationAnalysis.png">
 You can definitely skip this if your mapping results are around and above the 70%. Is your data is way below that, it might be worthy to further investigate possible conntamination sources.
 On the middle row the sample is oddily unmapping to the reference genome. I took this one and proceed as described to determine that this sample was effectively contaminated with salmon DNA.
-<img src="/ATAC-Seq/Images/03.ContaminationAnalysisIllustration.png" width="300" height="150">
+<img src="/ATAC-Seq/Images/03.ContaminationAnalysisIllustration.png">
 It is important to discuss results with your peers so you can narrow down all of the multiple possibilities.
 
 ### 4- Cleaning
