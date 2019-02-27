@@ -1,14 +1,25 @@
 #!/bin/bash
 
-# ATAC-seq Standarized pipeline mm10: Version -- 03
+# ATAC-seq Standarized pipeline mm10: Version -- 04
 # Author: Edahi Gonzalez-Avalos
-# Email:  edahi@lji.org
-# Date:   2018.10.22
+# Email:  edahi@eng.ucsd.edu
+# Date:   2019.02.19
 # Versions logs
+# v4.
+#  Added Blast analysis using no mappable reads
+#  Change the way I calculated the raw total reads
+#  Change remapping parameters to be more broad
+#  Added the calculation of Usable Reads
+#  Modified the way I gather the summary results
+#  Moved the Peak calling section to the end
+#  Changed the way I generate the bigWigs files (Now I used my custom script)
+#  Modified How I call peaks with MACS2 to concentrate on the sumimts
+#  Expand the summits to 200bp from the center
+#  Changed email inside script
 # v3.
-#  Corrected minor filename conveniences (Add HOMER prefix to HOMER peaks).
-#  Corrected missing backslash to make final file consistent with my template format.
-#  Added MACS2 program and peaks.
+#  Corrected minor filename conveniences (Add HOMER prefix to HOMER peaks)
+#  Corrected missing backslash to make final file consistent with template format
+#  Added MACS2 program and peaks
 #  Renamed folder "06.HOMER_Peaks" by "06.Peaks" given MACS2 peaks introduction.
 # v2.
 #  Compressed downloaded FASTQ file
@@ -24,11 +35,11 @@
 #  Added code to check if SRR was given
 
 # >>> How to use the program:
-#    ATACseq_mm10_SRR_v3 [-c SRR code] [-n Name def:ATAC] [-d DownloadDir def:/BioScratch/edahi] [-a AnalysisDir def:/BioScratch/edahi] [-r Run created job def:no] [-q rao-exclusive queue def:no] [-h help]"
+#    ATACseq_mm10_SRR_v4 [-c SRR code] [-n Name def:ATAC] [-d DownloadDir def:/BioScratch/edahi] [-a AnalysisDir def:/BioScratch/edahi] [-r Run created job def:no] [-q rao-exclusive queue def:no] [-h help]"
 
 usage()
 {
-    printf "\nusage: /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/ATACseq_mm10_SRR_v3 [-c SRR code]"
+    printf "\nusage: /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/ATACseq_mm10_SRR_v4 [-c SRR code]"
     printf "\n\t[-n | --name      Name                       def:ATAC  ]"
     printf "\n\t[-d | --download  DownloadPath               def:/mnt/beegfs ]"
     printf "\n\t[-a | --analysis  AnalysisPath               def:/mnt/BioAdHoc/Groups/RaoLab/temp ]"
@@ -98,17 +109,18 @@ FragLenEst=$analysis/04.FragmentLengthEstimates
        ssp=$analysis/05.SSP
    peakDir=$analysis/06.Peaks
    BigWigs=$analysis/07.BigWigs
+    BlastR=$analysis/08.BlastResults
     FASTQC=$analysis/FASTQC
   FASTQCun=$analysis/FASTQC_UnMap
 
 mkdir -p $Jobs
 
-cat <<EOF> $Jobs/${name}.ATACseq.mm10.v3.sh
+cat <<EOF> $Jobs/${name}.PublicATACseq.mm10.v4.sh
 #!/bin/bash -ex
-#PBS -N ${name}.ATACseq.mm10.v3
+#PBS -N ${name}.ATACseq.mm10.v4
 #PBS -l walltime=168:00:00
-#PBS -o $Jobs/${name}.ATACseq.mm10.v3.out
-#PBS -e $Jobs/${name}.ATACseq.mm10.v3.out
+#PBS -o $Jobs/${name}.ATACseq.mm10.v4.out
+#PBS -e $Jobs/${name}.ATACseq.mm10.v4.out
 #PBS -j oe
 #PBS -l nodes=1:ppn=4
 #PBS -M edahi@lji.org
@@ -116,16 +128,16 @@ cat <<EOF> $Jobs/${name}.ATACseq.mm10.v3.sh
 #PBS -m ae
 EOF
 if [ "$raoqueue" = "1" ]; then
- cat <<EOF>> $Jobs/${name}.ATACseq.mm10.v3.sh
+ cat <<EOF>> $Jobs/${name}.PublicATACseq.mm10.v4.sh
 #PBS -q rao-exclusive
 EOF
 else
- cat <<EOF>> $Jobs/${name}.ATACseq.mm10.v3.sh
+ cat <<EOF>> $Jobs/${name}.PublicATACseq.mm10.v4.sh
 #PBS -q default
 EOF
 fi
 
-cat <<EOF>> $Jobs/${name}.ATACseq.mm10.v3.sh
+cat <<EOF>> $Jobs/${name}.PublicATACseq.mm10.v4.sh
 
 export PATH=/share/apps/R/3.1.0/bin:/share/apps/python/python-3.4.6/bin:/share/apps/python/python-2.7.13/bin:/share/apps/perl/perl-5.18.1-threaded/bin/:/share/apps/gcc/6.3/bin:/mnt/BioApps/pigz/latest/bin:/share/apps/bin:/usr/local/maui/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/opt/stack/bin:/share/apps/java/latest/bin:/share/apps/bowtie/bowtie2-2.1.0:/share/apps/bowtie/bowtie-1.1.2:/usr/local/cuda/bin:/share/apps/dos2unix/latest/bin:/share/apps/bedtools/bin:/share/apps/HOMER/bin
 printf "PATH Used:\n\$PATH\n\n"
@@ -138,21 +150,25 @@ unset PYTHONPATH
     BamCov=/home/edahi/.local/bin/bamCoverage
        Ann=/home/edahi/download/code/HOMER/bin/annotatePeaks.pl
   getPeaks=/home/edahi/download/code/HOMER/bin/findPeaks
- mMultiWig=/home/edahi/download/code/HOMER/bin/makeMultiWigHub.pl
    makeTag=/home/edahi/download/code/HOMER/bin/makeTagDirectory
  fastqdump=/home/edahi/download/code/sra/sratoolkit.2.8.2-1-ubuntu64/bin/fastq-dump
 trimgalore=/home/edahi/download/code/TrimGalore/0.3.8/trim_galore
-   mm10bwa=/home/edahi/download/genome/mm10/bwa/index/mm10_random/mm10.fa
+   mm10bwa=/mnt/BioAdHoc/Groups/RaoLab/Bioinformatics/apps/Mus_musculus/UCSC/mm10/BWAIndex/genome.fa
 mm10genome=/mnt/BioAdHoc/Groups/RaoLab/Bioinformatics/apps/Mus_musculus/UCSC/mm10/BowtieIndex/genome
 genomesize=/mnt/BioAdHoc/Groups/RaoLab/Bioinformatics/apps/Mus_musculus/UCSC/mm10/BowtieIndex/genome.fa.sizes
     Btools=/mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/01.Downloaded/bedtools2/bin/bedtools
     makeBG=/mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/01.Downloaded/HOMER/bin/makeUCSCfile
+    Blastn=/mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/01.Downloaded/ncbi-blast-2.7.1+/bin/blastn
     RunSPP=/mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/01.Downloaded/phantompeakqualtools/run_spp.R
+   velveth=/mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/01.Downloaded/velvet_1.2.10/velveth
+   velvetg=/mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/01.Downloaded/velvet_1.2.10/velvetg
+     bg2bw=/mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/bedGraph2BigWig.sh
+Fa2OneLine=/mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/Fa2OneLine.sh
+   BLASTDB=/mnt/BioAdHoc/Groups/RaoLab/Edahi/01.Genomes/Blast
     BLmm10=/mnt/BioAdHoc/Groups/RaoLab/Edahi/01.Genomes/Mus_musculus/UCSC/mm10/Sequence/Blacklist/mm10.blacklist.bed
       py27=/share/apps/python/python-2.7.13/bin/python
      MACS2=/share/apps/python/python-2.7.6/bin/macs2
    Rscript=/share/apps/R/3.1.0/bin/Rscript
-     bg2bw=/share/apps/UCSC/bedGraphToBigWig
       calc=/share/apps/UCSC/calc
        sam=/usr/bin/samtools
 
@@ -168,13 +184,14 @@ FragLenEst=$FragLenEst
        ssp=$ssp
    peakDir=$peakDir
    BigWigs=$BigWigs
+    BlastR=$BlastR
     FASTQC=$FASTQC
   FASTQCun=$FASTQCun
       keep=$keep
       Jobs=$Jobs
 
 # Generate Directories Framework:
-mkdir -p \$softlink \$mapping/\${name} \$TagDirs \$FragLenEst \$ssp \$peakDir \$FASTQC \$FASTQCun \$BigWigs
+mkdir -p \$softlink \$mapping/\${name} \$TagDirs \$FragLenEst \$ssp \$peakDir \$FASTQC \$FASTQCun \$BigWigs \$BlastR
 
 # >>>>>> Check if files existed before (THEN DELETOS)
 if [ -f \$download/\${srr}_1.fastq.gz ];     then printf "Removing Pre-existing \$download/\${srr}_[12].fastq.gz"     ; rm \$download/\${srr}_*.fastq.gz    ; fi
@@ -202,7 +219,8 @@ nohup \$bowtie -p 4 -m 1 --best --strata -X 2000 \\
 
 # >>>>>> Summary Statistics (0)(1) -- Name & Total reads
 echo \${name} > \$mapping/\${name}/SummaryStats00.txt
-grep processed \$mapping/\$name/BowtieStats.txt | cut -f2 -d: | tr -d ' '  > \$mapping/\${name}/SummaryStats01.txt
+Treads=\$(echo \$(grep processed \$mapping/\$name/BowtieStats.txt | cut -f2 -d: | tr -d ' ' | head -n1 )*2|bc) 
+echo \$Treads  > \$mapping/\${name}/SummaryStats01.txt
 
 # >>>>>> trim_galore unmapped reads
 \$trimgalore --paired --nextera --length 37 \\
@@ -214,14 +232,37 @@ grep processed \$mapping/\$name/BowtieStats.txt | cut -f2 -d: | tr -d ' '  > \$m
 
 # >>>>>> Remap filtered-unmapped reads
 printf "Statistics for bowtie mapping of trim_galore unmapped reads \n" >> \$mapping/\$name/BowtieStats.txt
-nohup \$bowtie -p 4 -m 1 --best --strata -X 2000 \\
+nohup \$bowtie -p 4 -m 1 --best --strata -X 2500 -v 3 -e 100 --tryhard \\
   -S --fr --chunkmbs 1024 \$mm10genome \\
   -1 \$mapping/\$name/\${name}_unmapped_1_val_1.fq \\
   -2 \$mapping/\$name/\${name}_unmapped_2_val_2.fq \\
-  \$mapping/\$name/\${name}_remapTrimUnmapped_mm10.sam &>> \$mapping/\$name/BowtieStats.txt
+  \$mapping/\$name/\${name}_remapTrimUnmapped_mm10.sam \\
+  --un \$mapping/\$name/\${name}_unmapped2.fastq &>> \$mapping/\$name/BowtieStats.txt
 
 # >>>>>> FASTQC for Trim_Galore filtered reads
 \$fastqc \$mapping/\$name/\${name}_unmapped_1_val_1.fq \$mapping/\$name/\${name}_unmapped_2_val_2.fq --outdir=\$FASTQCun &
+
+# >>>>>> De-novo assembly from reads unmapped ont he second run: Explore what are the unmapped reads:
+\$velveth \$mapping/\$name/Velvet 27 -fastq -shortPaired -separate \$mapping/\$name/\${name}_unmapped2_1.fastq \$mapping/\$name/\${name}_unmapped2_2.fastq -create_binary
+nohup \$velvetg \$mapping/\$name/Velvet -cov_cutoff 17 -ins_length 300 -ins_length_sd 3 -max_branch_length 300  &>> \$mapping/\$name/Velvet/Velvetg.v1.txt
+
+# >>>>>> Retrieve top three longest assemblies:
+NODES=(\`tail -n+2 \$mapping/\$name/Velvet/stats.txt | grep -v Inf| cut -f1-2 -d\. |  awk -v OFS="\t" '\$3=\$2*\$6' | sort -k3,3n | tail -n3 | cut -f1-2 | awk '{print "NODE_"\$1"_length_"\$2"_"}'\`)
+for i in \${!NODES[@]}; do 
+ j=\`echo \${i}+1|bc\`
+ grep \${NODES[\$i]} \$mapping/\$name/Velvet/contigs.fa -A600 | awk 'BEGIN{a=0}{if(\$_ ~ /^>/){a=a+1; if(a==2){exit}} print \$_ }' > \${BlastR}/\${name}_Biggest_Contig_Length-Cov_Ratio_0\${j}.tm
+done
+
+# >>>>>> Format top three longest assemblies to OneLiners:
+\$Fa2OneLine \${BlastR}/\${name}_Biggest_Contig_Length-Cov_Ratio_01.tm \${BlastR}/\${name}_Biggest_Contig_Length-Cov_Ratio_01.fa
+\$Fa2OneLine \${BlastR}/\${name}_Biggest_Contig_Length-Cov_Ratio_02.tm \${BlastR}/\${name}_Biggest_Contig_Length-Cov_Ratio_02.fa
+\$Fa2OneLine \${BlastR}/\${name}_Biggest_Contig_Length-Cov_Ratio_03.tm \${BlastR}/\${name}_Biggest_Contig_Length-Cov_Ratio_03.fa
+rm \${BlastR}/\${name}_Biggest_Contig_Length-Cov_Ratio_0[123].tm 
+
+# >>>>>> Run Blast on each of the three longest contigs to my local databases:
+\$Blastn -num_descriptions 10 -num_alignments 10  -html -query \${BlastR}/\${name}_Biggest_Contig_Length-Cov_Ratio_01.fa -db \${BLASTDB}/DownloadStuff/NT_Blasted/nt -out \${BlastR}/\${name}_Biggest_Contig_Length-Cov_Ratio_01.html 
+\$Blastn -num_descriptions 10 -num_alignments 10  -html -query \${BlastR}/\${name}_Biggest_Contig_Length-Cov_Ratio_02.fa -db \${BLASTDB}/DownloadStuff/NT_Blasted/nt -out \${BlastR}/\${name}_Biggest_Contig_Length-Cov_Ratio_02.html 
+\$Blastn -num_descriptions 10 -num_alignments 10  -html -query \${BlastR}/\${name}_Biggest_Contig_Length-Cov_Ratio_03.fa -db \${BLASTDB}/DownloadStuff/NT_Blasted/nt -out \${BlastR}/\${name}_Biggest_Contig_Length-Cov_Ratio_03.html 
 
 # In this case the warning "[bam_header_read] EOF marker is absent. The input is probably truncated."
 # Should be ignored. Using samtools view on pipelines gives uncompressed bam, and these do not have the EOF marker
@@ -242,11 +283,9 @@ nohup \$bowtie -p 4 -m 1 --best --strata -X 2000 \\
   \$mapping/\$name/\${name}_remapTrimUnmapped_mm10_onlymapped_sorted.bam
 
 # >>>>>> Summary Statistics (2) -- First Mapped Reads 
-# grep Reported \$mapping/\$name/stats1.txt | cut -f2 -d\\   > \$mapping/\${name}/SummaryStats02.txt
 \$sam view -c \$mapping/\$name/\${name}_mm10_onlymapped_sorted.bam   > \$mapping/\${name}/SummaryStats02.txt
 
 # >>>>>> Summary Statistics (3) -- Second Mapped Reads 
-# grep Reported \$mapping/\$name/stats2.txt | cut -f2 -d\\   > \$mapping/\${name}/SummaryStats03.txt
 \$sam view -c \$mapping/\$name/\${name}_remapTrimUnmapped_mm10_onlymapped_sorted.bam   > \$mapping/\${name}/SummaryStats03.txt
 
 # >>>>>> Summary Statistics (4) -- Total Merged Mapped Reads
@@ -289,7 +328,8 @@ java -jar \$MarkDup \
 \$Btools intersect -a \$mapping/\${name}/\${name}.mapped.sorted.merged.nochrM.rmdup.bam -b \$BLmm10 -v > \$mapping/\${name}/\${name}.whitelist.bam
 
 # >>>>>> Summary Statistics (7) -- Raw clean mapping results
-\$sam view -c \$mapping/\${name}/\${name}.whitelist.bam  > \$mapping/\${name}/SummaryStats07.txt
+Ureads=\$(\$sam view -c \$mapping/\${name}/\${name}.whitelist.bam)
+echo \$Ureads > \$mapping/\${name}/SummaryStats07.txt
 
 # >>>>>> FragLenEst (Filtered):
   \$sam view -F 0x0204 -o - \$mapping/\${name}/\${name}.whitelist.bam | 
@@ -327,9 +367,12 @@ cat \$ssp/\${name}.Filtered.FragLenEst.tab |awk '{print \$3}'|cut -d ',' -f 1 > 
 # >>>>>> Summary Statistics (9) -- Tn5 (9bp) Insertion sites
 \$sam view -c \$mapping/\${name}/\${name}.Tn5footprint.bam  > \$mapping/\${name}/SummaryStats09.txt
 
+# >>>>>> Summary Statistics (10) -- Usable Reads
+\$calc \${Ureads}*100/\${Treads} | cut -f2 -d\= | cut -c2-6 > \$mapping/\${name}/SummaryStats10.txt
+
 # >>>>>> Gather all summaries:
-echo 'SampleName,RawReads,Mapped_1st,Mapped_2nd,TotalMapped,chrM_Filter,Duplicated_Filter,Whitelist_Filter,Subnucleosomal,Tn5_9bp_InsertionSizes' >  \$mapping/\${name}/Colnames.MappingStats.csv
-paste -d, \$mapping/\${name}/SummaryStats0[0-9].txt  >  \$mapping/\${name}/MappingStats.csv
+echo 'SampleName,RawReads,Mapped_1st,Mapped_2nd,TotalMapped,chrM_Filter,Duplicated_Filter,Whitelist_Filter,Subnucleosomal,Tn5_9bp_InsertionSizes,UsableReadsFromSequenced' >  \$mapping/\${name}/Colnames.MappingStats.csv
+paste -d, \$mapping/\${name}/SummaryStats0[0-9].txt  \$mapping/\${name}/SummaryStats10.txt  >  \$mapping/\${name}/MappingStats.csv
 
 # >>>>>>Indexes of all files (1)Clean Mapping Results (2)SubNucleosomal (3)Tn5Footprint
 \$sam index \$mapping/\${name}/\${name}.whitelist.bam
@@ -345,15 +388,6 @@ mkdir -p  \$TagDirs/\${name}_whitelist \$TagDirs/\${name}_subNuc \$TagDirs/\${na
 \$makeTag \$TagDirs/\${name}_subNuc    -keepAll -illuminaPE \$mapping/\${name}/\${name}.subNuc.bam       > \$TagDirs/\${name}_subNuc/maketagdir.txt
 \$makeTag \$TagDirs/\${name}_Tn5       -keepAll -illuminaPE \$mapping/\${name}/\${name}.Tn5footprint.bam > \$TagDirs/\${name}_Tn5/maketagdir.txt
 
-# >>>>>> Call Peaks
-\$getPeaks \$TagDirs/\${name}_whitelist -style dnase -region -nfr -o \$peakDir/HOMER.\${name}.whitelist.peaks.txt
-\$getPeaks \$TagDirs/\${name}_subNuc    -style dnase -region -nfr -o \$peakDir/HOMER.\${name}.subNuc.peaks.txt
-\$getPeaks \$TagDirs/\${name}_Tn5       -style dnase -region -nfr -o \$peakDir/HOMER.\${name}.Tn5.peaks.txt
-
-\$MACS2 callpeak -t \$mapping/\${name}/\${name}.whitelist.bam    -f BAMPE  -n \$peakDir/MACS2.\${name}.whitelist -g mm -q 0.05  --keep-dup all --nomodel
-\$MACS2 callpeak -t \$mapping/\${name}/\${name}.subNuc.bam       -f BAMPE  -n \$peakDir/MACS2.\${name}.subNuc    -g mm -q 0.05  --keep-dup all --nomodel
-\$MACS2 callpeak -t \$mapping/\${name}/\${name}.Tn5footprint.bam -f BAM    -n \$peakDir/MACS2.\${name}.Tn5       -g mm -q 0.05  --keep-dup all --nomodel
-
 # >>>>>> Generate BigWig files 
 \$makeBG   \$TagDirs/\${name}_whitelist -o auto -fsize 1e20 
 \$makeBG   \$TagDirs/\${name}_subNuc    -o auto -fsize 1e20 
@@ -363,18 +397,28 @@ zcat \$TagDirs/\${name}_whitelist/\${name}_whitelist.ucsc.bedGraph.gz | tail -n+
 zcat \$TagDirs/\${name}_subNuc/\${name}_subNuc.ucsc.bedGraph.gz       | tail -n+2 | sort -k1,1 -k2,2n > \$TagDirs/\${name}_subNuc/\${name}_subNuc.ucsc.bedGraph
 zcat \$TagDirs/\${name}_Tn5/\${name}_Tn5.ucsc.bedGraph.gz             | tail -n+2 | sort -k1,1 -k2,2n > \$TagDirs/\${name}_Tn5/\${name}_Tn5.ucsc.bedGraph
 
-\$bg2bw \$TagDirs/\${name}_whitelist/\${name}_whitelist.ucsc.bedGraph \$genomesize \$BigWigs/\${name}.whitelist.bw
-\$bg2bw \$TagDirs/\${name}_subNuc/\${name}_subNuc.ucsc.bedGraph       \$genomesize \$BigWigs/\${name}.subNuc.bw
-\$bg2bw \$TagDirs/\${name}_Tn5/\${name}_Tn5.ucsc.bedGraph             \$genomesize \$BigWigs/\${name}.Tn5.bw
-
-# \$BamCov --bam \$mapping/\${name}/\${name}.Tn5footprint.bam --numberOfProcessors 4 --binSize 1  --normalizeUsing RPKM --smoothLength 1  --ignoreDuplicates -o \$BigWigs/\${name}.Tn5_9bp.bw  --maxFragmentLength 10 &
-# \$BamCov --bam \$mapping/\${name}/\${name}.subNuc.bam       --numberOfProcessors 4 --binSize 10 --normalizeUsing RPKM --smoothLength 30 --ignoreDuplicates -o \$BigWigs/\${name}.subNuc.bw &
-# \$BamCov --bam \$mapping/\${name}/\${name}.whitelist.bam    --numberOfProcessors 4 --binSize 10 --normalizeUsing RPKM --smoothLength 30 --ignoreDuplicates -o \$BigWigs/\${name}.whitelist.bw 
+\$bg2bw \$TagDirs/\${name}_whitelist/\${name}_whitelist.ucsc.bedGraph \$BigWigs/\${name}.whitelist.bw mm10
+\$bg2bw \$TagDirs/\${name}_subNuc/\${name}_subNuc.ucsc.bedGraph       \$BigWigs/\${name}.subNuc.bw    mm10
+\$bg2bw \$TagDirs/\${name}_Tn5/\${name}_Tn5.ucsc.bedGraph             \$BigWigs/\${name}.Tn5.bw       mm10
 
 # >>> Add BigWigs to tracks file:
 echo track type=bigWig name=\${name}.whitelist description=\${name}.whitelist visibility=2 autoScale=off maxHeightPixels=40 viewLimits=0:200 color=10,10,10 graphType=bar bigDataUrl=http://informaticsdata.liai.org/NGS_analyses/ad_hoc/\${BigWigs/\\/mnt\/BioAdHoc\\//}/\${name}.whitelist.bw >> \${BigWigs}/ATAC_Tracks_Whitelist.txt
 echo track type=bigWig name=\${name}.subNuc    description=\${name}.subNuc    visibility=2 autoScale=off maxHeightPixels=40 viewLimits=0:200 color=0,0,255  graphType=bar bigDataUrl=http://informaticsdata.liai.org/NGS_analyses/ad_hoc/\${BigWigs/\\/mnt\/BioAdHoc\\//}/\${name}.subNuc.bw    >> \${BigWigs}/ATAC_Tracks_subNuc.txt
 echo track type=bigWig name=\${name}.Tn5       description=\${name}.Tn5       visibility=2 autoScale=off maxHeightPixels=40 viewLimits=0:200 color=0,255,0  graphType=bar bigDataUrl=http://informaticsdata.liai.org/NGS_analyses/ad_hoc/\${BigWigs/\\/mnt\/BioAdHoc\\//}/\${name}.Tn5_9bp.bw   >> \${BigWigs}/ATAC_Tracks_Tn5_9bp.txt
+
+# >>>>>> Call Peaks
+\$getPeaks \$TagDirs/\${name}_whitelist -style dnase -region -nfr -o \$peakDir/HOMER.\${name}.whitelist.peaks.txt
+\$getPeaks \$TagDirs/\${name}_subNuc    -style dnase -region -nfr -o \$peakDir/HOMER.\${name}.subNuc.peaks.txt
+\$getPeaks \$TagDirs/\${name}_Tn5       -style dnase -region -nfr -o \$peakDir/HOMER.\${name}.Tn5.peaks.txt
+
+\$MACS2 callpeak -t \$mapping/\${name}/\${name}.whitelist.bam    -f BAMPE  -n \$peakDir/MACS2.\${name}.whitelist -g mm -q 0.0001  --keep-dup all --nomodel --call-summits
+\$MACS2 callpeak -t \$mapping/\${name}/\${name}.subNuc.bam       -f BAMPE  -n \$peakDir/MACS2.\${name}.subNuc    -g mm -q 0.0001  --keep-dup all --nomodel --call-summits
+\$MACS2 callpeak -t \$mapping/\${name}/\${name}.Tn5footprint.bam -f BAM    -n \$peakDir/MACS2.\${name}.Tn5       -g mm -q 0.0001  --keep-dup all --nomodel --call-summits
+
+# >>>>>> Extend 200 the peak summits:
+awk -v OFS="\t" '{if(\$2 > 101){\$2 = \$2-100} else {\$2=1}; \$3=\$3+100; print \$_}' \$peakDir/MACS2.\${name}.whitelist_summits.bed > \$peakDir/MACS2.\${name}.whitelist_summits.200bp.bed
+awk -v OFS="\t" '{if(\$2 > 101){\$2 = \$2-100} else {\$2=1}; \$3=\$3+100; print \$_}' \$peakDir/MACS2.\${name}.subNuc_summits.bed    > \$peakDir/MACS2.\${name}.subNuc_summits.200bp.bed
+awk -v OFS="\t" '{if(\$2 > 101){\$2 = \$2-100} else {\$2=1}; \$3=\$3+100; print \$_}' \$peakDir/MACS2.\${name}.Tn5_summits.bed       > \$peakDir/MACS2.\${name}.Tn5_summits.200bp.bed
 
 # >>>>>> Remove Intermediate Files (if selected):
 if [ "\$keep" = "0" ]; then
@@ -392,5 +436,5 @@ EOF
 # >>> If selected, Run job
 if [ "$run" = "1" ]; then
  echo "Running Job"
- qsub $Jobs/${name}.ATACseq.mm10.v3.sh
+ qsub $Jobs/${name}.PublicATACseq.mm10.v4.sh
 fi
