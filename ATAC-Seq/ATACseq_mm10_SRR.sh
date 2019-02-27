@@ -1,10 +1,15 @@
 #!/bin/bash
 
-# ATAC-seq Standarized pipeline mm10: Version -- 02
+# ATAC-seq Standarized pipeline mm10: Version -- 03
 # Author: Edahi Gonzalez-Avalos
 # Email:  edahi@lji.org
-# Date:   2018.06.28
+# Date:   2018.10.22
 # Versions logs
+# v3.
+#  Corrected minor filename conveniences (Add HOMER prefix to HOMER peaks).
+#  Corrected missing backslash to make final file consistent with my template format.
+#  Added MACS2 program and peaks.
+#  Renamed folder "06.HOMER_Peaks" by "06.Peaks" given MACS2 peaks introduction.
 # v2.
 #  Compressed downloaded FASTQ file
 #  Reformat the help message
@@ -19,11 +24,11 @@
 #  Added code to check if SRR was given
 
 # >>> How to use the program:
-#    ATACseq_mm10_SRR_v2.sh [-c SRR code] [-n Name def:ATAC] [-d DownloadDir def:/BioScratch/edahi] [-a AnalysisDir def:/BioScratch/edahi] [-r Run created job def:no] [-q rao-exclusive queue def:no] [-h help]"
+#    ATACseq_mm10_SRR_v3 [-c SRR code] [-n Name def:ATAC] [-d DownloadDir def:/BioScratch/edahi] [-a AnalysisDir def:/BioScratch/edahi] [-r Run created job def:no] [-q rao-exclusive queue def:no] [-h help]"
 
 usage()
 {
-    printf "\nusage: /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/ATACseq_mm10_SRR_v2.sh [-c SRR code]"
+    printf "\nusage: /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/ATACseq_mm10_SRR_v3 [-c SRR code]"
     printf "\n\t[-n | --name      Name                       def:ATAC  ]"
     printf "\n\t[-d | --download  DownloadPath               def:/mnt/beegfs ]"
     printf "\n\t[-a | --analysis  AnalysisPath               def:/mnt/BioAdHoc/Groups/RaoLab/temp ]"
@@ -91,19 +96,19 @@ fi
    TagDirs=$analysis/03.TagDirectories
 FragLenEst=$analysis/04.FragmentLengthEstimates
        ssp=$analysis/05.SSP
-   peakDir=$analysis/06.HOMER_Peaks
+   peakDir=$analysis/06.Peaks
    BigWigs=$analysis/07.BigWigs
     FASTQC=$analysis/FASTQC
   FASTQCun=$analysis/FASTQC_UnMap
 
 mkdir -p $Jobs
 
-cat <<EOF> $Jobs/${name}.ATACseq.mm10.v2.sh
+cat <<EOF> $Jobs/${name}.ATACseq.mm10.v3.sh
 #!/bin/bash -ex
-#PBS -N ${name}.ATACseq.mm10.v2
+#PBS -N ${name}.ATACseq.mm10.v3
 #PBS -l walltime=168:00:00
-#PBS -o $Jobs/${name}.ATACseq.mm10.v2.out
-#PBS -e $Jobs/${name}.ATACseq.mm10.v2.out
+#PBS -o $Jobs/${name}.ATACseq.mm10.v3.out
+#PBS -e $Jobs/${name}.ATACseq.mm10.v3.out
 #PBS -j oe
 #PBS -l nodes=1:ppn=4
 #PBS -M edahi@lji.org
@@ -111,16 +116,16 @@ cat <<EOF> $Jobs/${name}.ATACseq.mm10.v2.sh
 #PBS -m ae
 EOF
 if [ "$raoqueue" = "1" ]; then
- cat <<EOF>> $Jobs/${name}.ATACseq.mm10.v2.sh
+ cat <<EOF>> $Jobs/${name}.ATACseq.mm10.v3.sh
 #PBS -q rao-exclusive
 EOF
 else
- cat <<EOF>> $Jobs/${name}.ATACseq.mm10.v2.sh
+ cat <<EOF>> $Jobs/${name}.ATACseq.mm10.v3.sh
 #PBS -q default
 EOF
 fi
 
-cat <<EOF>> $Jobs/${name}.ATACseq.mm10.v2.sh
+cat <<EOF>> $Jobs/${name}.ATACseq.mm10.v3.sh
 
 export PATH=/share/apps/R/3.1.0/bin:/share/apps/python/python-3.4.6/bin:/share/apps/python/python-2.7.13/bin:/share/apps/perl/perl-5.18.1-threaded/bin/:/share/apps/gcc/6.3/bin:/mnt/BioApps/pigz/latest/bin:/share/apps/bin:/usr/local/maui/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/opt/stack/bin:/share/apps/java/latest/bin:/share/apps/bowtie/bowtie2-2.1.0:/share/apps/bowtie/bowtie-1.1.2:/usr/local/cuda/bin:/share/apps/dos2unix/latest/bin:/share/apps/bedtools/bin:/share/apps/HOMER/bin
 printf "PATH Used:\n\$PATH\n\n"
@@ -130,6 +135,7 @@ unset PYTHONPATH
     bowtie=/Bioinformatics/apps/bowtie/bowtie-1.0.0/bowtie
     fastqc=/Bioinformatics/apps/FastQC/FastQC-0.11.2/fastqc
    MarkDup=/Bioinformatics/apps/picard-tools/picard-tools-1.94/MarkDuplicates.jar
+    BamCov=/home/edahi/.local/bin/bamCoverage
        Ann=/home/edahi/download/code/HOMER/bin/annotatePeaks.pl
   getPeaks=/home/edahi/download/code/HOMER/bin/findPeaks
  mMultiWig=/home/edahi/download/code/HOMER/bin/makeMultiWigHub.pl
@@ -144,9 +150,10 @@ genomesize=/mnt/BioAdHoc/Groups/RaoLab/Bioinformatics/apps/Mus_musculus/UCSC/mm1
     RunSPP=/mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/01.Downloaded/phantompeakqualtools/run_spp.R
     BLmm10=/mnt/BioAdHoc/Groups/RaoLab/Edahi/01.Genomes/Mus_musculus/UCSC/mm10/Sequence/Blacklist/mm10.blacklist.bed
       py27=/share/apps/python/python-2.7.13/bin/python
-     bg2bw=/share/apps/UCSC/bedGraphToBigWig
-    BamCov=/home/edahi/.local/bin/bamCoverage
+     MACS2=/share/apps/python/python-2.7.6/bin/macs2
    Rscript=/share/apps/R/3.1.0/bin/Rscript
+     bg2bw=/share/apps/UCSC/bedGraphToBigWig
+      calc=/share/apps/UCSC/calc
        sam=/usr/bin/samtools
 
 
@@ -251,9 +258,9 @@ nohup \$bowtie -p 4 -m 1 --best --strata -X 2000 \\
     gzip -c > \$FragLenEst/\${name}.Raw.tagAlign.gz 
 
 # >>>>>> Run ssp [PhantomPeaks] (Raw)
-\$Rscript \$RunSPP \
-    -s=-100:5:600 \
-    -c=\$FragLenEst/\${name}.Raw.tagAlign.gz -savp \
+\$Rscript \$RunSPP \\
+    -s=-100:5:600 \\
+    -c=\$FragLenEst/\${name}.Raw.tagAlign.gz -savp \\
     -out=\$ssp/\${name}.Raw.FragLenEst.tab 
 
 # >>>>>> fragmentLengthEstimate (Raw)
@@ -269,10 +276,10 @@ cat \$ssp/\${name}.Raw.FragLenEst.tab |awk '{print \$3}'|cut -d ',' -f 1 > \$Fra
 
 # >>>>>> Remove Duplicates:
 java -jar \$MarkDup \
-   INPUT=\$mapping/\${name}/\${name}.mapped.sorted.merged.nochrM.bam \
-   OUTPUT=\$mapping/\${name}/\${name}.mapped.sorted.merged.nochrM.rmdup.bam \
-   METRICS_FILE=\$mapping/\${name}/\${name}_PicardMetrics.txt \
-   REMOVE_DUPLICATES=true \
+   INPUT=\$mapping/\${name}/\${name}.mapped.sorted.merged.nochrM.bam \\
+   OUTPUT=\$mapping/\${name}/\${name}.mapped.sorted.merged.nochrM.rmdup.bam \\
+   METRICS_FILE=\$mapping/\${name}/\${name}_PicardMetrics.txt \\
+   REMOVE_DUPLICATES=true \\
    ASSUME_SORTED=true
 
 # >>>>>> Summary Statistics (6) -- Deduplicated mapped reads w/o chrM
@@ -290,9 +297,9 @@ java -jar \$MarkDup \
     gzip -c > \$FragLenEst/\${name}.Filtered.tagAlign.gz 
 
 # >>>>>> Run ssp [PhantomPeaks] (Filtered)
-\$Rscript \$RunSPP \
-    -s=-100:5:600 \
-    -c=\$FragLenEst/\${name}.Filtered.tagAlign.gz -savp \
+\$Rscript \$RunSPP \\
+    -s=-100:5:600 \\
+    -c=\$FragLenEst/\${name}.Filtered.tagAlign.gz -savp \\
     -out=\$ssp/\${name}.Filtered.FragLenEst.tab 
 
 # >>>>>> fragmentLengthEstimate (Filtered)
@@ -339,9 +346,13 @@ mkdir -p  \$TagDirs/\${name}_whitelist \$TagDirs/\${name}_subNuc \$TagDirs/\${na
 \$makeTag \$TagDirs/\${name}_Tn5       -keepAll -illuminaPE \$mapping/\${name}/\${name}.Tn5footprint.bam > \$TagDirs/\${name}_Tn5/maketagdir.txt
 
 # >>>>>> Call Peaks
-\$getPeaks \$TagDirs/\${name}_whitelist -style dnase -region -nfr -o \$peakDir/\${name}_whitelist.peaks.txt
-\$getPeaks \$TagDirs/\${name}_subNuc    -style dnase -region -nfr -o \$peakDir/\${name}_subNuc.peaks.txt
-\$getPeaks \$TagDirs/\${name}_Tn5       -style dnase -region -nfr -o \$peakDir/\${name}_Tn5.peaks.txt
+\$getPeaks \$TagDirs/\${name}_whitelist -style dnase -region -nfr -o \$peakDir/HOMER.\${name}.whitelist.peaks.txt
+\$getPeaks \$TagDirs/\${name}_subNuc    -style dnase -region -nfr -o \$peakDir/HOMER.\${name}.subNuc.peaks.txt
+\$getPeaks \$TagDirs/\${name}_Tn5       -style dnase -region -nfr -o \$peakDir/HOMER.\${name}.Tn5.peaks.txt
+
+\$MACS2 callpeak -t \$mapping/\${name}/\${name}.whitelist.bam    -f BAMPE  -n \$peakDir/MACS2.\${name}.whitelist -g mm -q 0.05  --keep-dup all --nomodel
+\$MACS2 callpeak -t \$mapping/\${name}/\${name}.subNuc.bam       -f BAMPE  -n \$peakDir/MACS2.\${name}.subNuc    -g mm -q 0.05  --keep-dup all --nomodel
+\$MACS2 callpeak -t \$mapping/\${name}/\${name}.Tn5footprint.bam -f BAM    -n \$peakDir/MACS2.\${name}.Tn5       -g mm -q 0.05  --keep-dup all --nomodel
 
 # >>>>>> Generate BigWig files 
 \$makeBG   \$TagDirs/\${name}_whitelist -o auto -fsize 1e20 
@@ -381,5 +392,5 @@ EOF
 # >>> If selected, Run job
 if [ "$run" = "1" ]; then
  echo "Running Job"
- qsub $Jobs/${name}.ATACseq.mm10.v2.sh
+ qsub $Jobs/${name}.ATACseq.mm10.v3.sh
 fi
