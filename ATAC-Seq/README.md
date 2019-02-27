@@ -84,7 +84,6 @@ There are multiple ways to detect significant differences among a set of conditi
 1. Use peaks masterset to obtain Tn5 insertions per sample
 2. Voom-normalize the data
 3. Use Limma for statistical comparisons
-
 - Adjusted p value < 0.05
 - minimum absolute log2-fold-change of 1 (2 times more signal in one sample vs the other).
 <img src="/ATAC-Seq/Images/07.DARs.png">
