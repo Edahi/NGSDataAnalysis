@@ -1,0 +1,198 @@
+#!/bin/bash
+
+# Whole-Genome Bisulfite Sequencing Standarized pipeline GRCh38_PhiX_Lambda: Version -- 02
+# Author: Edahi Gonzalez-Avalos
+# Email:  edahi@lji.org
+# Date:   2019.04.10
+# Versions logs
+# v2.
+#  Added awk line to filter the methylation calls corresponding to the CG context
+# v1.
+#  Merge Sequencing lanes
+#  Perform Quality check w/FASTQC
+#  Perform Mapping
+
+# >>> How to use the program:
+#    WGBSeq_GRCh38_PhiX_Lambda_PE_Existing_v1 -s PREFIX [-n Name def:Amplicon] [-d DownloadDir def:/BioScratch/edahi] [-a AnalysisDir def:/BioScratch/edahi] [-c Chromosome of Interest def:chrX] [-q rao-exclusive queue def:no] [-r Run created job def:no] [-h help]"
+# >>> Examples:
+# # /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/WGBSeq_GRCh38_PhiX_Lambda_PE_Existing_v1 -s AS-136075  -n WGBS_5N    -d /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/DKFZ/01.RawData/01.WGBS/5N -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/08.WGBS_Pipelines/01.Edahi_LJI -q -r
+# # /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/WGBSeq_GRCh38_PhiX_Lambda_PE_Existing_v1 -s AS-136076  -n WGBS_5T    -d /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/DKFZ/01.RawData/01.WGBS/5T -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/08.WGBS_Pipelines/01.Edahi_LJI -q -r
+# # /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/WGBSeq_GRCh38_PhiX_Lambda_PE_Existing_v1 -s AS-136076  -n WGBS_6N    -d /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/DKFZ/01.RawData/01.WGBS/6N -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/08.WGBS_Pipelines/01.Edahi_LJI -q -r
+# # /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/WGBSeq_GRCh38_PhiX_Lambda_PE_Existing_v1 -s AS-136076  -n WGBS_6T    -d /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/DKFZ/01.RawData/01.WGBS/6T -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/08.WGBS_Pipelines/01.Edahi_LJI -q -r
+
+# # /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/WGBSeq_GRCh38_PhiX_Lambda_PE_Existing_v1 -s AS-134     -n T_WGBS_5N  -d /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/DKFZ/01.RawData/02.T_WGBS/5N -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/08.WGBS_Pipelines/01.Edahi_LJI -q -r
+# # /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/WGBSeq_GRCh38_PhiX_Lambda_PE_Existing_v1 -s AS-134     -n T_WGBS_5T  -d /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/DKFZ/01.RawData/02.T_WGBS/5T -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/08.WGBS_Pipelines/01.Edahi_LJI -q -r
+# # /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/WGBSeq_GRCh38_PhiX_Lambda_PE_Existing_v1 -s AS-134     -n T_WGBS_6N  -d /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/DKFZ/01.RawData/02.T_WGBS/6N -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/08.WGBS_Pipelines/01.Edahi_LJI -q -r
+# # /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/WGBSeq_GRCh38_PhiX_Lambda_PE_Existing_v1 -s AS-134     -n T_WGBS_6T  -d /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/DKFZ/01.RawData/02.T_WGBS/6T -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/08.WGBS_Pipelines/01.Edahi_LJI -q -r
+
+
+usage()
+{
+    printf "\nusage: /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/WGBSeq_GRCh38_PhiX_Lambda_PE_Existing_v1 -s suffix from downloaded data"
+    printf "\n\t[-n | --name      Name                       def:WGBSeqSample  ]"
+    printf "\n\t[-d | --download  DownloadPath               def:/mnt/beegfs ]"
+    printf "\n\t[-a | --analysis  AnalysisPath               def:/mnt/BioAdHoc/Groups/RaoLab/temp ]"
+    printf "\n\t[-t | --temp      TemporalPath               def:/mnt/BioScratch/edahi ]"
+    printf "\n\t[-q | --queue     set 'rao-exclusive' queue  def:'default' ]"
+    printf "\n\t[-r | --run       Run created job            def:no   ]"
+    printf "\n\t[-h | --help      Show this message and exit ]\n\n"
+}
+
+
+# >>> Check if arguments given:
+if [ "$1" == "" ]; then
+  usage
+  exit 1
+fi
+
+# >>> Declare Variables
+download=/mnt/beegfs
+analysis=/mnt/BioScratch/edahi/Amplicon
+temp=/mnt/BioScratch/edahi
+surname=
+name=WGBSeq
+run=0
+queue=0
+keep=0
+
+# >>> Assign arguments to variables
+while [ "$1" != "" ]; do
+    case $1 in
+        -s | --PRE )            shift
+                                surname=$1
+                                ;;
+        -n | --name )           shift
+                                name=$1
+                                ;;
+        -d | --download )       shift
+                                download=$1
+                                ;;
+        -a | --analysis )       shift
+                                analysis=$1
+                                ;;
+        -t | --temp )           shift
+                                temp=$1
+                                ;;
+        -q | --queue  )         queue=1
+                                ;;
+        -r | --run    )         run=1
+                                ;;
+        -h | --help )           usage
+                                exit
+                                ;;
+        * )                     usage
+                                exit 1
+    esac
+    shift
+done
+
+# >>> Check if SRR was given:
+if [ "$surname" = "" ]; then
+    printf "\n\tsurname is a required argument. Check --help for further assistance\n\n";
+    exit
+fi
+
+      Jobs=$analysis/Jobs
+  softlink=$analysis/01.Data
+   mapping=$analysis/02.Mapping
+  MethCall=$analysis/03.MethCall
+    Master=$analysis/04.Master
+    FASTQC=$analysis/FASTQC
+[[ $queue == "1" ]]  && queue=rao-exclusive ||  queue=default
+
+mkdir -p $Jobs
+
+cat <<EOF> $Jobs/${name}.WGBSeq.GRCh38_PhiX_Lambda.PE.v1.sh
+#!/bin/bash -x
+#PBS -N ${name}.WGBSeq.GRCh38_PhiX_Lambda.PE.v1.v1
+#PBS -l walltime=168:00:00
+#PBS -o $Jobs/${name}.WGBSeq.GRCh38_PhiX_Lambda.PE.v1.out
+#PBS -e $Jobs/${name}.WGBSeq.GRCh38_PhiX_Lambda.PE.v1.out
+#PBS -j oe
+#PBS -l nodes=1:ppn=8
+#PBS -M edahi@lji.org
+#PBS -l mem=40GB
+#PBS -m ae
+#PBS -q $queue
+
+export PATH=/share/apps/R/3.1.0/bin:/share/apps/python/python-3.4.6/bin:/share/apps/python/python-2.7.13/bin:/share/apps/perl/perl-5.18.1-threaded/bin/:/share/apps/gcc/6.3/bin:/mnt/BioApps/pigz/latest/bin:/share/apps/bin:/usr/local/maui/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/opt/stack/bin:/share/apps/java/latest/bin:/share/apps/bowtie/bowtie2-2.1.0:/share/apps/bowtie/bowtie-1.1.2:/usr/local/cuda/bin:/share/apps/dos2unix/latest/bin:/share/apps/bedtools/bin:/share/apps/HOMER/bin
+printf "PATH Used:\n\$PATH\n\n"
+unset PYTHONPATH
+
+#Variables:
+    fastqc=/Bioinformatics/apps/FastQC/FastQC-0.11.2/fastqc
+     bsmap=/home/edahi/download/code/bsmap-2.90/bsmap
+   mm10bwa=/home/edahi/download/genome/mm10/bwa/index/mm10_random/mm10.fa
+    Mratio=/home/edahi/usr/bin/methratio.py
+    genome=/home/edahi/download/genome/GRCh38_PhiX_Lambda/genome.fa
+     Mcall=/share/apps/moab/bin/mcall
+       sam=/usr/bin/samtools
+      samF=/usr/bin
+
+
+# From Script:
+
+  download=$download
+   surname=$surname
+      name=$name
+      Jobs=$Jobs
+  softlink=$softlink
+   mapping=$mapping
+  MethCall=$MethCall
+    Master=$Master
+    FASTQC=$FASTQC
+      temp=$temp
+
+# Generate Directories Framework:
+mkdir -p \$softlink \$mapping/\${name} \$MethCall \$Master \$FASTQC
+
+# >>>>>> Merge files from same lane:
+# zcat $download/\${surname}_L00*_R1*fastq.gz | gzip > \$temp/\${name}_R1.fastq.gz
+# zcat $download/\${surname}_L00*_R2*fastq.gz | gzip > \$temp/\${name}_R2.fastq.gz
+# zcat \$download/\${surname}*L*_R1*fastq  > \$temp/\${name}_R1.fastq
+# zcat \$download/\${surname}*L*_R2*fastq  > \$temp/\${name}_R1.fastq
+cat \$download/\${surname}*L*_R1*fastq  > \$temp/\${name}_R1.fastq
+cat \$download/\${surname}*L*_R2*fastq  > \$temp/\${name}_R2.fastq
+
+# >>>>>> Create Softlinks for ${name}
+ln -s \$temp/\${name}_R1.fastq \${softlink}/${name}_R1.fastq
+ln -s \$temp/\${name}_R2.fastq \${softlink}/${name}_R2.fastq
+
+# >>>>>> FASTQC for downloaded files
+# \$fastqc \${softlink}/\${name}_R1.fastq --outdir=\$FASTQC &
+# \$fastqc \${softlink}/\${name}_R2.fastq --outdir=\$FASTQC &
+
+# >>>>>> Mapping
+cd       \$mapping/\${name}
+\$bsmap -a \$temp/\${name}_R1.fastq -b \$temp/\${name}_R2.fastq -d \$genome -o \$mapping/\${name}/\${name}.unsorted.bam -v 15 -w 3 -p 8 -S 1921 -q 20 -r 0 -R -V 2 > \$mapping/\${name}/bsmap_log.txt
+
+
+# >>>>>> Separate Lambda, phix and GRCh38 Genome mapping results.
+\$sam sort -@ 8 \$mapping/\${name}/\${name}.unsorted.bam  \$mapping/\${name}/\${name}
+\$sam index     \$mapping/\${name}/\${name}.bam
+\$sam view -b   \$mapping/\${name}/\${name}.bam phix       > \$mapping/\${name}/\${name}.phix.bam
+\$sam view -b   \$mapping/\${name}/\${name}.bam L          > \$mapping/\${name}/\${name}.Lambda.bam
+\$sam view      \$mapping/\${name}/\${name}.bam | grep chr | \$sam view -ht \${genome}.fai -  > \$mapping/\${name}/\${name}.GRCh38.sam
+\$sam index     \$mapping/\${name}/\${name}.phix.bam
+\$sam index     \$mapping/\${name}/\${name}.Lambda.bam
+
+# >>>>>> Bisulfite treatment efficiency
+\$Mcall -m \$mapping/\${name}/\${name}.phix.bam   -r \$genome -p 8 --skipRandomChrom 1 --statsOnly 1 &
+\$Mcall -m \$mapping/\${name}/\${name}.Lambda.bam -r \$genome -p 8 --skipRandomChrom 1 --statsOnly 1 &
+\$Mcall -m \$mapping/\${name}/\${name}.GRCh38.sam -r \$genome -p 8 --skipRandomChrom 1 --statsOnly 1 &
+
+# >>>>>> Methylation Calls
+\$Mratio -o \$MethCall/\${name}.phix.meth    -d \$genome  -c phix  -s \$samF  -u  -p  -i "correct"  -x CG          \$mapping/\${name}/\${name}.phix.bam   > \$MethCall/\${name}.phix.meth.log 
+\$Mratio -o \$MethCall/\${name}.Lambda.meth  -d \$genome  -c L     -s \$samF  -u  -p  -i "correct"  -x CG          \$mapping/\${name}/\${name}.Lambda.bam > \$MethCall/\${name}.Lambda.meth.log 
+\$Mratio -o \$MethCall/\${name}.GRCh38.meth  -d \$genome           -s \$samF  -u  -p  -i "correct"  -x CG,CHG,CHH  \$mapping/\${name}/\${name}.GRCh38.sam > \$MethCall/\${name}.GRCh38.meth.log 
+
+# >>>>>> CG context Methylation calls
+awk -v OFS="\t" -v FS="\t" '{if(NR==1) {print $_; next} if($4=="CG") {print $_} }' \$MethCall/\${name}.GRCh38.meth > \$MethCall/\${name}.GRCh38.CG.meth
+
+EOF
+  
+# >>> If selected, Run job
+if [ "$run" = "1" ]; then
+# echo "Running Job"
+ qsub $Jobs/${name}.WGBSeq.GRCh38_PhiX_Lambda.PE.v1.sh
+fi

@@ -1,0 +1,295 @@
+#!/bin/bash
+# HMCP-Seq w/SpikeIns Standarized PostAnalysis pipeline 
+# Author: Edahi Gonzalez-Avalos
+# Email:  edahi@lji.org
+# Date:   2019.03.18
+# Versions logs
+# v1.
+#  Load IP as genomic table
+#  Load INPUT as genomic table              [Optional]
+#  Convert IP / INPUT to RPM and subtract   [Optional]
+#  De-Convert IP from RPM to "raw"          [Optional]
+#  Load EXOgeomic data for Scaling Factor
+#  Calculate ScalingFactor
+#  Scale (De-Converted-)IP data
+#  Obtain BigWigs for GenomeBrowser 
+#  Perform Call Peaks w/ w/o INPUT
+#  
+
+# NOTES:
+#   About peak calling, an argument we might receive if we call peaks in the raw data might be:
+#   Q:   "What if many of these suposedly called peaks are actuallyjust technical that could be corrected by INPUT when calling the actual peaks?"
+#   A:   "To compensate for the bigger search space introduced by non-corrected peak calling, we chose an stringent signal level and/or p.value when calling Differentially Enriched Regions."
+
+#  Used in:
+#  (-)  Project: 2_26_19_Jerry_pool2 PID: 121060942
+#  (1)  /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/HMCPSeq_PostAnalysis_01_Scaling_Bigwigs_andPeaks_v1  --ip /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/Jerry/Collaboration/RafaelBehar/Brian/HMCP/2_26_19_Jerry_pool2/06.BigWigs/TF1-TET2KO-1.50bp_binned.counts.bw  --input /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/Jerry/Collaboration/RafaelBehar/Brian/HMCP/2_26_19_Jerry_pool2/06.BigWigs/TF1-TET2KO-1-input.50bp_binned.counts.bw  --exo  /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/Jerry/Collaboration/RafaelBehar/Brian/HMCP/2_26_19_Jerry_pool2/02.Mapping/TF1-TET2KO-1/TF1-TET2KO-1.T4spike.bam   --analysis /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/Jerry/Collaboration/RafaelBehar/Brian/HMCP/2_26_19_Jerry_pool2/   --peaks /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/Jerry/Collaboration/RafaelBehar/Brian/HMCP/2_26_19_Jerry_pool2/07.Peaks  --bigwig /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/Jerry/Collaboration/RafaelBehar/Brian/HMCP/2_26_19_Jerry_pool2/06.BigWigs  --queue  --keep --IP /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/Jerry/Collaboration/RafaelBehar/Brian/HMCP/2_26_19_Jerry_pool2/02.Mapping/TF1-TET2KO-1/TF1-TET2KO-1.whitelist.bam  --INPUT /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/Jerry/Collaboration/RafaelBehar/Brian/HMCP/2_26_19_Jerry_pool2/02.Mapping/TF1-TET2KO-1-input/TF1-TET2KO-1-input.whitelist.bam --run
+#  (2)  /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/HMCPSeq_PostAnalysis_01_Scaling_Bigwigs_andPeaks_v1  --ip /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/Jerry/Collaboration/RafaelBehar/Brian/HMCP/2_26_19_Jerry_pool2/06.BigWigs/TF1-TET2KO-2.50bp_binned.counts.bw  --input /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/Jerry/Collaboration/RafaelBehar/Brian/HMCP/2_26_19_Jerry_pool2/06.BigWigs/TF1-TET2KO-2-input.50bp_binned.counts.bw  --exo  /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/Jerry/Collaboration/RafaelBehar/Brian/HMCP/2_26_19_Jerry_pool2/02.Mapping/TF1-TET2KO-2/TF1-TET2KO-2.T4spike.bam   --analysis /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/Jerry/Collaboration/RafaelBehar/Brian/HMCP/2_26_19_Jerry_pool2/   --peaks /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/Jerry/Collaboration/RafaelBehar/Brian/HMCP/2_26_19_Jerry_pool2/07.Peaks  --bigwig /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/Jerry/Collaboration/RafaelBehar/Brian/HMCP/2_26_19_Jerry_pool2/06.BigWigs  --queue  --keep --IP /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/Jerry/Collaboration/RafaelBehar/Brian/HMCP/2_26_19_Jerry_pool2/02.Mapping/TF1-TET2KO-2/TF1-TET2KO-2.whitelist.bam  --INPUT /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/Jerry/Collaboration/RafaelBehar/Brian/HMCP/2_26_19_Jerry_pool2/02.Mapping/TF1-TET2KO-2-input/TF1-TET2KO-2-input.whitelist.bam --run
+#  (3)  /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/HMCPSeq_PostAnalysis_01_Scaling_Bigwigs_andPeaks_v1  --ip /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/Jerry/Collaboration/RafaelBehar/Brian/HMCP/2_26_19_Jerry_pool2/06.BigWigs/TF1-TET2WT-1.50bp_binned.counts.bw  --input /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/Jerry/Collaboration/RafaelBehar/Brian/HMCP/2_26_19_Jerry_pool2/06.BigWigs/TF1-TET2WT-1-input.50bp_binned.counts.bw  --exo  /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/Jerry/Collaboration/RafaelBehar/Brian/HMCP/2_26_19_Jerry_pool2/02.Mapping/TF1-TET2WT-1/TF1-TET2WT-1.T4spike.bam   --analysis /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/Jerry/Collaboration/RafaelBehar/Brian/HMCP/2_26_19_Jerry_pool2/   --peaks /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/Jerry/Collaboration/RafaelBehar/Brian/HMCP/2_26_19_Jerry_pool2/07.Peaks  --bigwig /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/Jerry/Collaboration/RafaelBehar/Brian/HMCP/2_26_19_Jerry_pool2/06.BigWigs  --queue  --keep --IP /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/Jerry/Collaboration/RafaelBehar/Brian/HMCP/2_26_19_Jerry_pool2/02.Mapping/TF1-TET2WT-1/TF1-TET2WT-1.whitelist.bam  --INPUT /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/Jerry/Collaboration/RafaelBehar/Brian/HMCP/2_26_19_Jerry_pool2/02.Mapping/TF1-TET2WT-1-input/TF1-TET2WT-1-input.whitelist.bam --run
+#  (4)  /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/HMCPSeq_PostAnalysis_01_Scaling_Bigwigs_andPeaks_v1  --ip /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/Jerry/Collaboration/RafaelBehar/Brian/HMCP/2_26_19_Jerry_pool2/06.BigWigs/TF1-TET2WT-2.50bp_binned.counts.bw  --input /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/Jerry/Collaboration/RafaelBehar/Brian/HMCP/2_26_19_Jerry_pool2/06.BigWigs/TF1-TET2WT-2-input.50bp_binned.counts.bw  --exo  /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/Jerry/Collaboration/RafaelBehar/Brian/HMCP/2_26_19_Jerry_pool2/02.Mapping/TF1-TET2WT-2/TF1-TET2WT-2.T4spike.bam   --analysis /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/Jerry/Collaboration/RafaelBehar/Brian/HMCP/2_26_19_Jerry_pool2/   --peaks /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/Jerry/Collaboration/RafaelBehar/Brian/HMCP/2_26_19_Jerry_pool2/07.Peaks  --bigwig /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/Jerry/Collaboration/RafaelBehar/Brian/HMCP/2_26_19_Jerry_pool2/06.BigWigs  --queue  --keep --IP /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/Jerry/Collaboration/RafaelBehar/Brian/HMCP/2_26_19_Jerry_pool2/02.Mapping/TF1-TET2WT-2/TF1-TET2WT-2.whitelist.bam  --INPUT /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/Jerry/Collaboration/RafaelBehar/Brian/HMCP/2_26_19_Jerry_pool2/02.Mapping/TF1-TET2WT-2-input/TF1-TET2WT-2-input.whitelist.bam --run
+#  (5)  /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/HMCPSeq_PostAnalysis_01_Scaling_Bigwigs_andPeaks_v1  -i /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/1_8_19_Jerry_1A_1B/06.BigWigs/HMCP4-1.bw   -b /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/3_6_19_Jerry_Pool3/06.BigWigs/HMCP4-1.bw   -I /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/1_8_19_Jerry_1A_1B/02.Mapping/HMCP4-1/HMCP4-1.whitelist.bam    -B /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/3_6_19_Jerry_Pool3/02.Mapping/HMCP4-1/HMCP4-1.whitelist.bam    -e /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/1_8_19_Jerry_1A_1B/02.Mapping/HMCP4-1/HMCP4-1.T4spike.bam    -o Rady35_tonsil_naiveB_rep1  -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/01.SpikeIn_Scaling/01.Summary -p /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/01.SpikeIn_Scaling/02.Peaks -w /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/01.SpikeIn_Scaling/03.BigWigs_ExoScaled -g hs -x 1 -r -q
+#  (6)  /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/HMCPSeq_PostAnalysis_01_Scaling_Bigwigs_andPeaks_v1  -i /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/1_8_19_Jerry_1A_1B/06.BigWigs/HMCP4-2.bw   -b /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/3_6_19_Jerry_Pool3/06.BigWigs/HMCP4-2.bw   -I /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/1_8_19_Jerry_1A_1B/02.Mapping/HMCP4-2/HMCP4-2.whitelist.bam    -B /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/3_6_19_Jerry_Pool3/02.Mapping/HMCP4-2/HMCP4-2.whitelist.bam    -e /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/1_8_19_Jerry_1A_1B/02.Mapping/HMCP4-2/HMCP4-2.T4spike.bam    -o Rady43_tonsil_naiveB_rep1  -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/01.SpikeIn_Scaling/01.Summary -p /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/01.SpikeIn_Scaling/02.Peaks -w /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/01.SpikeIn_Scaling/03.BigWigs_ExoScaled -g hs -x 1 -r -q
+#  (7)  /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/HMCPSeq_PostAnalysis_01_Scaling_Bigwigs_andPeaks_v1  -i /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/1_8_19_Jerry_1A_1B/06.BigWigs/HMCP4-3.bw   -b /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/3_6_19_Jerry_Pool3/06.BigWigs/HMCP4-3.bw   -I /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/1_8_19_Jerry_1A_1B/02.Mapping/HMCP4-3/HMCP4-3.whitelist.bam    -B /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/3_6_19_Jerry_Pool3/02.Mapping/HMCP4-3/HMCP4-3.whitelist.bam    -e /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/1_8_19_Jerry_1A_1B/02.Mapping/HMCP4-3/HMCP4-3.T4spike.bam    -o Rady35_tonsil_GC_B_rep1    -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/01.SpikeIn_Scaling/01.Summary -p /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/01.SpikeIn_Scaling/02.Peaks -w /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/01.SpikeIn_Scaling/03.BigWigs_ExoScaled -g hs -x 1 -r -q
+#  (8)  /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/HMCPSeq_PostAnalysis_01_Scaling_Bigwigs_andPeaks_v1  -i /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/1_8_19_Jerry_1A_1B/06.BigWigs/HMCP4-4.bw   -b /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/3_6_19_Jerry_Pool3/06.BigWigs/HMCP4-4.bw   -I /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/1_8_19_Jerry_1A_1B/02.Mapping/HMCP4-4/HMCP4-4.whitelist.bam    -B /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/3_6_19_Jerry_Pool3/02.Mapping/HMCP4-4/HMCP4-4.whitelist.bam    -e /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/1_8_19_Jerry_1A_1B/02.Mapping/HMCP4-4/HMCP4-4.T4spike.bam    -o Rady43_tonsil_GC_B_rep1    -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/01.SpikeIn_Scaling/01.Summary -p /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/01.SpikeIn_Scaling/02.Peaks -w /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/01.SpikeIn_Scaling/03.BigWigs_ExoScaled -g hs -x 1 -r -q
+#  (9)  /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/HMCPSeq_PostAnalysis_01_Scaling_Bigwigs_andPeaks_v1  -i /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/1_8_19_Jerry_1A_1B/06.BigWigs/HMCP4-5.bw   -b /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/3_6_19_Jerry_Pool3/06.BigWigs/HMCP4-5.bw   -I /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/1_8_19_Jerry_1A_1B/02.Mapping/HMCP4-5/HMCP4-5.whitelist.bam    -B /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/3_6_19_Jerry_Pool3/02.Mapping/HMCP4-5/HMCP4-5.whitelist.bam    -e /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/1_8_19_Jerry_1A_1B/02.Mapping/HMCP4-5/HMCP4-5.T4spike.bam    -o GCB138_rep1                -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/01.SpikeIn_Scaling/01.Summary -p /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/01.SpikeIn_Scaling/02.Peaks -w /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/01.SpikeIn_Scaling/03.BigWigs_ExoScaled -g hs -x 1 -r -q
+#  (10) /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/HMCPSeq_PostAnalysis_01_Scaling_Bigwigs_andPeaks_v1  -i /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/1_8_19_Jerry_1A_1B/06.BigWigs/HMCP4-6.bw   -b /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/3_6_19_Jerry_Pool3/06.BigWigs/HMCP4-6.bw   -I /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/1_8_19_Jerry_1A_1B/02.Mapping/HMCP4-6/HMCP4-6.whitelist.bam    -B /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/3_6_19_Jerry_Pool3/02.Mapping/HMCP4-6/HMCP4-6.whitelist.bam    -e /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/1_8_19_Jerry_1A_1B/02.Mapping/HMCP4-6/HMCP4-6.T4spike.bam    -o Staudt_JL1_rep1            -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/01.SpikeIn_Scaling/01.Summary -p /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/01.SpikeIn_Scaling/02.Peaks -w /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/01.SpikeIn_Scaling/03.BigWigs_ExoScaled -g hs -x 1 -r -q
+#  (11) /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/HMCPSeq_PostAnalysis_01_Scaling_Bigwigs_andPeaks_v1  -i /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/1_8_19_Jerry_1A_1B/06.BigWigs/HMCP4-7.bw   -b /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/3_6_19_Jerry_Pool3/06.BigWigs/HMCP4-7.bw   -I /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/1_8_19_Jerry_1A_1B/02.Mapping/HMCP4-7/HMCP4-7.whitelist.bam    -B /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/3_6_19_Jerry_Pool3/02.Mapping/HMCP4-7/HMCP4-7.whitelist.bam    -e /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/1_8_19_Jerry_1A_1B/02.Mapping/HMCP4-7/HMCP4-7.T4spike.bam    -o Staudt_JL2_rep1            -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/01.SpikeIn_Scaling/01.Summary -p /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/01.SpikeIn_Scaling/02.Peaks -w /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/01.SpikeIn_Scaling/03.BigWigs_ExoScaled -g hs -x 1 -r -q
+#  (12) /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/HMCPSeq_PostAnalysis_01_Scaling_Bigwigs_andPeaks_v1  -i /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/1_8_19_Jerry_1A_1B/06.BigWigs/HMCP4-8.bw   -b /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/3_6_19_Jerry_Pool3/06.BigWigs/HMCP4-8.bw   -I /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/1_8_19_Jerry_1A_1B/02.Mapping/HMCP4-8/HMCP4-8.whitelist.bam    -B /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/3_6_19_Jerry_Pool3/02.Mapping/HMCP4-8/HMCP4-8.whitelist.bam    -e /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/1_8_19_Jerry_1A_1B/02.Mapping/HMCP4-8/HMCP4-8.T4spike.bam    -o Staudt_JL3_rep1            -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/01.SpikeIn_Scaling/01.Summary -p /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/01.SpikeIn_Scaling/02.Peaks -w /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/01.SpikeIn_Scaling/03.BigWigs_ExoScaled -g hs -x 1 -r -q
+#  (13) /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/HMCPSeq_PostAnalysis_01_Scaling_Bigwigs_andPeaks_v1  -i /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/1_8_19_Jerry_1A_1B/06.BigWigs/HMCP4-9.bw   -b /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/3_6_19_Jerry_Pool3/06.BigWigs/HMCP4-9.bw   -I /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/1_8_19_Jerry_1A_1B/02.Mapping/HMCP4-9/HMCP4-9.whitelist.bam    -B /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/3_6_19_Jerry_Pool3/02.Mapping/HMCP4-9/HMCP4-9.whitelist.bam    -e /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/1_8_19_Jerry_1A_1B/02.Mapping/HMCP4-9/HMCP4-9.T4spike.bam    -o Staudt_JL4_rep1            -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/01.SpikeIn_Scaling/01.Summary -p /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/01.SpikeIn_Scaling/02.Peaks -w /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/01.SpikeIn_Scaling/03.BigWigs_ExoScaled -g hs -x 1 -r -q
+#  (14) /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/HMCPSeq_PostAnalysis_01_Scaling_Bigwigs_andPeaks_v1  -i /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/1_8_19_Jerry_1A_1B/06.BigWigs/HMCP4-10.bw  -b /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/3_6_19_Jerry_Pool3/06.BigWigs/HMCP4-10.bw  -I /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/1_8_19_Jerry_1A_1B/02.Mapping/HMCP4-10/HMCP4-10.whitelist.bam  -B /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/3_6_19_Jerry_Pool3/02.Mapping/HMCP4-10/HMCP4-10.whitelist.bam  -e /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/1_8_19_Jerry_1A_1B/02.Mapping/HMCP4-10/HMCP4-10.T4spike.bam  -o Staudt_JL5_rep1            -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/01.SpikeIn_Scaling/01.Summary -p /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/01.SpikeIn_Scaling/02.Peaks -w /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/01.SpikeIn_Scaling/03.BigWigs_ExoScaled -g hs -x 1 -r -q
+#  (15) /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/HMCPSeq_PostAnalysis_01_Scaling_Bigwigs_andPeaks_v1  -i /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/1_8_19_Jerry_1A_1B/06.BigWigs/HMCP4-11.bw  -b /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/3_6_19_Jerry_Pool3/06.BigWigs/HMCP4-11.bw  -I /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/1_8_19_Jerry_1A_1B/02.Mapping/HMCP4-11/HMCP4-11.whitelist.bam  -B /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/3_6_19_Jerry_Pool3/02.Mapping/HMCP4-11/HMCP4-11.whitelist.bam  -e /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/1_8_19_Jerry_1A_1B/02.Mapping/HMCP4-11/HMCP4-11.T4spike.bam  -o NP-OVA_d7_GCB_rep1         -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/01.SpikeIn_Scaling/01.Summary -p /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/01.SpikeIn_Scaling/02.Peaks -w /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/01.SpikeIn_Scaling/03.BigWigs_ExoScaled -g mm -x 1 -r -q
+#  (16) /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/HMCPSeq_PostAnalysis_01_Scaling_Bigwigs_andPeaks_v1  -i /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/1_8_19_Jerry_1A_1B/06.BigWigs/HMCP4-12.bw  -b /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/3_6_19_Jerry_Pool3/06.BigWigs/HMCP4-12.bw  -I /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/1_8_19_Jerry_1A_1B/02.Mapping/HMCP4-12/HMCP4-12.whitelist.bam  -B /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/3_6_19_Jerry_Pool3/02.Mapping/HMCP4-12/HMCP4-12.whitelist.bam  -e /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/1_8_19_Jerry_1A_1B/02.Mapping/HMCP4-12/HMCP4-12.T4spike.bam  -o NP-OVA_d7_pMem_rep1        -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/01.SpikeIn_Scaling/01.Summary -p /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/01.SpikeIn_Scaling/02.Peaks -w /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/01.SpikeIn_Scaling/03.BigWigs_ExoScaled -g mm -x 1 -r -q
+#  (17) /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/HMCPSeq_PostAnalysis_01_Scaling_Bigwigs_andPeaks_v1 -i /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/3_6_19_Jerry_Pool4/06.BigWigs/TonsilnaiveB-Redy43-repeat.bw -b /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/3_6_19_Jerry_Pool4/06.BigWigs/TonsilnaiveB-Redy43-repeat-input.bw -I /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/3_6_19_Jerry_Pool4/02.Mapping/TonsilnaiveB-Redy43-repeat/TonsilnaiveB-Redy43-repeat.whitelist.bam -B /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/3_6_19_Jerry_Pool4/02.Mapping/TonsilnaiveB-Redy43-repeat-input/TonsilnaiveB-Redy43-repeat-input.whitelist.bam -e /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/3_6_19_Jerry_Pool4/02.Mapping/TonsilnaiveB-Redy43-repeat/TonsilnaiveB-Redy43-repeat.T4spike.bam -o Rady43_tonsil_naiveB_rep2 -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/01.SpikeIn_Scaling/01.Summary -p /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/01.SpikeIn_Scaling/02.Peaks -w /mnt/BioAdHoc/Groups/RaoLab/Edahi/09.CombinedProjects/03.Jerry_Vipul_Hiroshi_Daniela/HMCP/01.SpikeIn_Scaling/03.BigWigs_ExoScaled -g hs -x 1 -r -q
+
+
+
+# >>> How to use the program:
+
+usage()
+{
+    printf "\nusage: /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/HMCPSeq_PostAnalysis_01_Scaling_Bigwigs_andPeaks_v1 "
+    printf "\n\t[ -i | --ip       ] IP BigWig file                     REQUIRED          "
+    printf "\n\t[ -b | --input    ] INPUT BigWig file (background)     def:NA            "
+    printf "\n\t[ -I | --IP       ] IP BAM file                        REQUIRED          "
+    printf "\n\t[ -B | --INPUT    ] INPUT BAM file (background)        def:NA            "
+    printf "\n\t[ -e | --exo      ] EXOGENOUS BAM file  (ScaleFactor)  REQUIRED          "
+    printf "\n\t[ -o | --out      ] FileName for Output                def:IP's basename "
+    printf "\n\t[ -a | --analysis ] Analysis Folder Path               def:./            "
+    printf "\n\t[ -p | --peaks    ] Peaks Folder Path                  def:./Peaks       "
+    printf "\n\t[ -w | --bigwig   ] BigWigs Folder Path                def:./BigWigs     "
+    printf "\n\t[ -g | --genome   ] Signal Folder Path                 def:hs      "
+    printf "\n\t[ -x | --ratio    ] RatioScale                         def:1      "
+    printf "\n\t[ -r | --run      ] Run created job                    def:no            "
+    printf "\n\t[ -q | --queue    ] Set 'rao-exclusive' queue          def:'default'     "
+    printf "\n\t[ -k | --keep     ] Keep intermediate results          def:no            "
+    printf "\n\t[ -h | --help     ] Show this message and exit         \n\n"
+}
+
+# >>> Check if arguments given:
+if [ "$1" == "" ]; then
+  printf "\n\t***** NO ARGUMENTS GIVEN *****\n\n"
+  usage
+  exit 1
+fi
+
+# >>> Declare Variables
+         IP=
+      INPUT=NA
+      IPbam=
+   INPUTbam=NA
+        EXO=
+SpikeInNorm=
+   analysis=./
+      Peaks=./Peaks
+    BigWigs=./BigWigs
+     genome=hs
+          x=1
+        run=0
+   raoqueue=0
+       keep=0
+       TEMP=/mnt/BioScratch/edahi
+       
+# >>> Assign arguments to variables
+while [ "$1" != "" ]; do
+    case $1 in
+        -i | --ip       )       shift
+                                IP=$1
+                                ;;
+        -b | --input    )       shift
+                                INPUT=$1
+                                ;;
+        -I | --IP       )       shift
+                                IPbam=$1
+                                ;;
+        -B | --INPUT    )       shift
+                                INPUTbam=$1
+                                ;;
+        -e | --exo      )       shift
+                                EXO=$1
+                                ;;
+        -o | --out      )       shift
+                                SpikeInNorm=$1
+                                ;;
+        -a | --analysis )       shift
+                                analysis=$1
+                                ;;
+        -p | --peaks    )       shift
+                                Peaks=$1
+                                ;;
+        -w | --bigwig   )       shift
+                                BigWigs=$1
+                                ;;
+        -g | --genome   )       shift
+                                genome=$1
+                                ;;
+        -x | --ratio   )        shift
+                                x=$1
+                                ;;
+        -r | --run    )         run=1
+                                ;;
+        -q | --queue  )         raoqueue=1
+                                ;;
+        -k | --keep  )          keep=1
+                                ;;
+        -h | --help )           usage
+                                exit
+                                ;;
+        * )                     usage
+                                exit 1
+    esac
+    shift
+done
+
+# >>> Check if File surname was given:
+if [ "$IP" = "" ]; then
+    printf "\n\tIP BigWig file is a required argument. Check --help for further assistance\n\n";
+    exit
+elif [ "$IPbam" = "" ]; then
+    printf "\n\tIP BAM file is a required argument. Check --help for further assistance\n\n";
+    exit
+elif [ "$EXO" = "" ]; then
+    printf "\n\tExogenous Genome BAM file is a required argument. Check --help for further assistance\n\n";
+    exit
+fi
+
+# >>>>>> Declare useful variables:
+
+[[ $INPUTbam == "NA" ]]  && INPUTbam=""                      || INPUTbam=" -c "${INPUTbam}
+[[ $SpikeInNorm == "" ]] && SpikeInNorm=${IP##*/}            && SpikeInNorm=${SpikeInNorm%.bw}
+[[ $raoqueue == "1" ]]   && Parameters=" "${Parameters}" -q" && queue=rao-exclusive             ||  queue=default
+[[ $run == "1" ]]        && Parameters=" "${Parameters}" -r"
+[[ $keep == "1" ]]       && Parameters=" "${Parameters}" -k"
+
+list=(mm hs)
+Over(){ printf "\n\tProvide a valid genome build:\ths or mm\n\n"; exit ;}
+[[ ${list[@]} =~ (^|[[:space:]])$genome($|[[:space:]]) ]]  ||  Over
+
+
+
+Jobs=$analysis/Jobs
+mkdir -p $Jobs
+
+cat <<EOF> $Jobs/HMCPSeq.PostProcessing.01.Peaks_Scaling_andBigwigs.$SpikeInNorm.v1.sh
+#!/bin/bash -x
+#PBS -N Peaks_Scaling_andBigwigs_${SpikeInNorm}
+#PBS -l walltime=168:00:00
+#PBS -o $Jobs/HMCPSeq.PostProcessing.01.Peaks_Scaling_andBigwigs.$SpikeInNorm.v1.out
+#PBS -e $Jobs/HMCPSeq.PostProcessing.01.Peaks_Scaling_andBigwigs.$SpikeInNorm.v1.out
+#PBS -j oe
+#PBS -l nodes=1:ppn=4
+#PBS -M edahi@lji.org
+#PBS -l mem=20GB
+#PBS -m ae
+#PBS -q $queue
+
+#Variables:
+       MACS2=/share/apps/python/python-2.7.6/bin/macs2
+       bg2bg=/share/apps/UCSC/bigWigToBedGraph
+         sam=/usr/bin/samtools
+
+# From Script:
+          IP=$IP
+       INPUT=$INPUT
+       IPbam=$IPbam
+    INPUTbam="$INPUTbam"
+         EXO=$EXO
+ SpikeInNorm=$SpikeInNorm
+    analysis=$analysis
+       Peaks=$Peaks
+     BigWigs=$BigWigs
+           x=$x
+      genome=$genome
+
+# >>>>>> Generate Directories Framework:
+mkdir -p \$Peaks \$BigWigs
+
+# >>>>>> Calculate SpikeIn Normalized sample (1/3):
+# >>>>>> START Rscript
+isPairedExo=\$(\$sam view -c -f 1 \$EXO)
+ isPairedIp=\$(\$sam view -c -f 1 \$IPbam)
+isPairedInp=\$(\$sam view -c -f 1 \${INPUTbam/ -c /})
+[[ \$isPairedExo == "0" ]] && isPairedExo=FALSE || isPairedExo=TRUE
+[[ \$isPairedIp == "0" ]]  && isPairedIp=FALSE  || isPairedIp=TRUE
+[[ \$isPairedInp == "0" ]] && isPairedInp=FALSE || isPairedInp=TRUE
+
+cat <<EOR> $Jobs/HMCPSeq.PostProcessing.01.Peaks_Scaling_andBigwigs.$SpikeInNorm.SpikeInNormalization.R
+#!/share/apps/R/3.4/bin/Rscript
+library(rtracklayer)
+# >>> Read Files IP / INPUT / EXO:
+cat("Loading Files\n")
+IP               = import(con = "\$IP", format = "bigWig")
+INPUT            = import(con = "\$INPUT", format = "bigWig")
+EXO              = import(con = "\$EXO", format = "bam",paired = \$isPairedExo)
+
+# >>> (1) Convert to RPM
+INPUT.rpmFactor  = (1000000 / sum(INPUT\\\$score))
+IP.rpmFactor     = (1000000 / sum(IP\\\$score))
+INPUT.rpmFactor                                       # 0.03750479
+IP.rpmFactor                                          # 0.08660398
+INPUT\\\$score      = INPUT.rpmFactor * INPUT\\\$score
+IP\\\$score         = IP.rpmFactor    * IP\\\$score
+sum(INPUT\\\$score)
+sum(IP\\\$score)
+export.bw(IP, con = "\$BigWigs/\${SpikeInNorm}-RPM.bw")
+export.bw(INPUT, con = "\$BigWigs/\${SpikeInNorm}-RPM.bw")
+
+# >>> (2)  Subtract INPUT RPM:
+cat("INPUT Subtraction\n")
+IP\\\$score      = IP\\\$score - INPUT\\\$score
+export.bw(IP,    con = "\$BigWigs/\${SpikeInNorm}-RPM-BGSub.bw")
+
+# >>> (3) Reverse RPM scaling files:
+cat("Reverse RPM\n")
+IP\\\$score[IP\\\$score<0] = 0
+IP\\\$score      = IP\\\$score/IP.rpmFactor
+export.bw(IP,    con = "\$BigWigs/\${SpikeInNorm}-RPM-BGSub-reverted.bw")
+
+# >>> (4) Spike-in scaling:
+cat("Spike-In Scaling\n")
+EXO.Factor        = \$x/(EXO@elementMetadata@nrows/1000000)
+EXO.Factor
+IP\\\$score       = IP\\\$score * EXO.Factor
+export.bw(IP,    con = "\$BigWigs/\${SpikeInNorm}-ExoScaled.bw")
+EOR
+
+# >>>>>> Calculate SpikeIn Normalized sample (2/3):
+# >>>>>> End Rscript
+
+# >>>>>> Calculate SpikeIn Normalized sample (3/3):
+# >>>>>> Run Rscript
+/share/apps/R/3.4/bin/R CMD BATCH $Jobs/HMCPSeq.PostProcessing.01.Peaks_Scaling_andBigwigs.${SpikeInNorm}.SpikeInNormalization.R $Jobs/HMCPSeq.PostProcessing.01.Peaks_Scaling_andBigwigs.${SpikeInNorm}.SpikeInNormalization.out
+
+# >>>>>> Convert from BigWig To BedGraphs for Peak Calling:
+# \$bg2bg \$BigWigs/\${SpikeInNorm}-ExoScaled.bw \$BigWigs/\${SpikeInNorm}-ExoScaled.bg
+
+# >>>>>> Call peaks in the NON-Spike-In normalized data:
+isPaired=\$(\$sam view -c -f 1 \$IPbam)
+[[ \$isPaired == "0" ]] && isPaired=BAM || isPaired=BAMPE
+\$MACS2 callpeak -t \$IPbam  \$INPUTbam -f \$isPaired  -n \${Peaks}/\${SpikeInNorm} -g \$genome -q 0.01  --keep-dup all --nomodel --broad
+
+# Report Total counts per step:
+$Ebash/bw2bg_LineCounter.sh $IP                                            $TEMP/${SpikeInNorm}.bg                    &
+$Ebash/bw2bg_LineCounter.sh $BigWigs/${SpikeInNorm}-RPM.bw                 $TEMP/${SpikeInNorm}-RPM.bg                &
+$Ebash/bw2bg_LineCounter.sh $BigWigs/${SpikeInNorm}-RPM-BGSub.bw           $TEMP/${SpikeInNorm}-RPM-BGSub.bg          &
+$Ebash/bw2bg_LineCounter.sh $BigWigs/${SpikeInNorm}-RPM-BGSub-reverted.bw  $TEMP/${SpikeInNorm}-RPM-BGSub-reverted.bg 
+$Ebash/bw2bg_LineCounter.sh $BigWigs/${SpikeInNorm}-ExoScaled.bw           $TEMP/${SpikeInNorm}-ExoScaled.bg          
+
+cat $TEMP/${SpikeInNorm}.bg.txt                     > ${analysis}/${SpikeInNorm}.txt
+cat $TEMP/${SpikeInNorm}-RPM.bg.txt                >> ${analysis}/${SpikeInNorm}.txt
+cat $TEMP/${SpikeInNorm}-RPM-BGSub.bg.txt          >> ${analysis}/${SpikeInNorm}.txt
+cat $TEMP/${SpikeInNorm}-RPM-BGSub-reverted.bg.txt >> ${analysis}/${SpikeInNorm}.txt
+cat $TEMP/${SpikeInNorm}-ExoScaled.bg.txt          >> ${analysis}/${SpikeInNorm}.txt
+
+if [ "\$keep" = "0" ]; then
+ rm $BigWigs/${SpikeInNorm}-RPM.bw
+ rm $BigWigs/${SpikeInNorm}-RPM-BGSub.bw
+ rm $BigWigs/${SpikeInNorm}-RPM-BGSub-reverted.bw
+fi
+
+EOF
+  
+# >>> If selected, Run job
+if [ "$run" = "1" ]; then
+#  echo "Running Job"
+ qsub $Jobs/HMCPSeq.PostProcessing.01.Peaks_Scaling_andBigwigs.$SpikeInNorm.v1.sh
+fi

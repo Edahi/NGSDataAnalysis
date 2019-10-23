@@ -1,0 +1,309 @@
+#!/bin/bash
+
+# CMS-IP-Seq Standarized pipeline mm10|hg38: Version -- 01.4
+# Author: Edahi Gonzalez-Avalos
+# Email:  edahi@lji.org
+# Date:   2019.10.02
+# Versions logs
+# v1.4
+#   Moved the folders declaration content inside the script for more generalizable content
+# v1.3
+#   Added a variable for the version
+#   Renamed Jobs to include version used
+#   Added The Genome Version and the Organism before the general variables to generalize script
+#   Corrected the PROXI commands (It was zcat'ting the PROXI file, which is unexistant)
+# v1.2
+#   Updated the HOMER version used
+#   Added a new variable for MACS2 genome version macsGen
+#   Updated the Samtools used from 0.1.19 & 0.1.18 to 1.8 
+#   Added a visually appealing cat use
+#   Added a more descriptive error message when unknown input is given
+#   Added the option to analyse pre-downloaded datasets or personal data.
+#     Must be already merged in a single file that matches the name given.
+# v1.1 Removed some somewhat unnecessary stuff 
+#    Removed  --skip-technical from fastq-dump
+#    Added optional lambda DNA analysis (Default is no lambda DNA)
+#    Support mm10 | hg38 analysis
+#    Improved IF statements
+
+#  Used in:
+#  (1) 
+
+# >>> Examples:
+# 
+
+# >>> Pipeline Version:
+Ver=1.4
+
+usage()
+{
+printf "
+\nusage: /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/CMSIP_mm10_SRR_v1 <PARAMETERS>:
+\nReq:\t[-s | --SRA         <#> ]  SRA ID                                 def:NONE -- Required Argument 
+\nReq:\t[-n | --Name      <str> ]  SampleName                             def:NONE -- Required Argument 
+\nReq:\t[-g | --Genome    <str> ]  Genome Version  mm10|hg38              def:NONE -- Required Argument 
+\n\t[-d | --download  DownloadPath               def:/mnt/beegfs ]
+\n\t[-a | --analysis  AnalysisPath               def:/mnt/BioAdHoc/Groups/RaoLab/temp ]
+\n\t[-t | --temp      TemporalPath               def:/mnt/BioScratch/edahi ]
+\n\t[-c | --chrom     Chromosome of Interest     def:'chr' ]
+\n\t[-q | --queue     set 'rao-exclusive' queue  def:'default' ]
+\n\t[-r | --lambda    Is lambda DNA spiked?      def:no   ]
+\n\t[-r | --run       Run created job            def:no   ]
+\n\t[-k | --keep      Keep intermediate results  def:no   ]
+\n\t[-h | --help      Show this message and exit ]\n\n"
+}
+
+
+# >>> Check if arguments given:
+if [ "$1" == "" ]; then
+  usage
+  exit 1
+fi
+
+# >>> Declare Variables
+   download=/mnt/beegfs
+   analysis=/mnt/BioScratch/edahi/temp
+      chrom=chr
+       temp=/mnt/BioScratch/edahi
+    surname=
+        run=0
+   raoqueue="default"
+     lambda=0
+       keep=0
+RandomSeed=$RANDOM
+
+# >>> Assign arguments to variables
+while [ "$1" != "" ]; do
+    case $1 in
+        -s | --SRA )            shift
+                                srr=$1
+                                ;;
+        -n | --name )           shift
+                                name=$1
+                                ;;
+        -g | --GenVer )         shift
+                                GenVer=$1
+                                ;;
+        -d | --download )       shift
+                                download=$1
+                                ;;
+        -a | --analysis )       shift
+                                analysis=$1
+                                ;;
+        -t | --temp )           shift
+                                temp=$1
+                                ;;
+        -c | --chrom )          shift
+                                chrom=$1
+                                ;;
+        -q | --queue  )         raoqueue="rao-exclusive"
+                                ;;
+        -L | --lambda  )        lambda=1
+                                ;;
+        -k | --keep  )          keep=1
+                                ;;
+        -r | --run    )         run=1
+                                ;;
+        -h | --help )           usage
+                                exit
+                                ;;
+        * )                     printf "\n\tAn invalid argument was given: %s \n" $1
+                                usage
+                                exit 1
+    esac
+    shift
+done
+
+# >>> Check if SRR was given:
+[[ $srr = "" ]] &&  printf "\n\tSRA ID '--SRA' is a required argument. \n\tCheck --help for further assistance.\n\n" && exit
+[[ $name = "" ]] &&  printf "\n\tName '--Name' is a required argument. \n\tCheck --help for further assistance.\n\n" && exit
+
+# >>> Check if valid Genome version build was given:
+list=(mm10 hg38)
+Over(){ printf "\n\tProvide a valid genome build version \n\tCheck --help for further assistance\n\n" ; exit;}
+[[ ${list[@]} =~ (^|[[:space:]])$GenVer($|[[:space:]]) ]]  ||  Over
+[[ $GenVer =~ (^hg) ]] && Organism=Homo_sapiens ||  Organism=Mus_musculus
+[[ $GenVer =~ (^hg) ]] && macsGen=hs ||  macsGen=mm                       # <<< V1.2 change|addition
+
+      Jobs=$analysis/Jobs
+
+mkdir -p $Jobs
+
+cat > $Jobs/CMSIP.v${Ver}.${GenVer}.SRR.${name}.sh <<EOF
+#!/bin/bash -x
+#PBS -N CMSIP.v${Ver}.${GenVer}.SRR.${name}
+#PBS -l walltime=168:00:00
+#PBS -o $Jobs/CMSIP.v${Ver}.${GenVer}.SRR.${name}.out
+#PBS -e $Jobs/CMSIP.v${Ver}.${GenVer}.SRR.${name}.out
+#PBS -j oe
+#PBS -l nodes=1:ppn=4
+#PBS -M edahi@lji.org
+#PBS -l mem=20GB
+#PBS -m ae
+#PBS -q $raoqueue
+
+export PATH=/share/apps/R/3.1.0/bin:/share/apps/python/python-3.4.6/bin:/share/apps/python/python-2.7.13/bin:/share/apps/perl/perl-5.18.1-threaded/bin/:/share/apps/gcc/6.3/bin:/mnt/BioApps/pigz/latest/bin:/share/apps/bin:/usr/local/maui/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/opt/stack/bin:/share/apps/java/latest/bin:/share/apps/bowtie/bowtie2-2.1.0:/share/apps/bowtie/bowtie-1.1.2:/usr/local/cuda/bin:/share/apps/dos2unix/latest/bin:/share/apps/bedtools/bin:/share/apps/HOMER/bin
+printf "PATH Used:\n\$PATH\n\n"
+unset PYTHONPATH
+
+# From Script:               # <<< V1.3 change|addition
+       srr=$srr
+  download=$download
+   surname=$surname
+      name=$name
+     chrom=$chrom
+      Jobs=$Jobs
+    lambda=$lambda
+   macsGen=$macsGen
+    GenVer=$GenVer               # <<< V1.3 change|addition
+  Organism=$Organism             # <<< V1.3 change|addition
+  analysis=$analysis
+  softlink=\$analysis/01.Data                         # <<< V1.4 change|addition
+   mapping=\$analysis/02.Mapping                      # <<< V1.4 change|addition
+  MethCall=\$analysis/03.MethCall                     # <<< V1.4 change|addition
+FragLenEst=\$analysis/04.FragmentLengthEstimates      # <<< V1.4 change|addition
+       ssp=\$analysis/05.SSP                          # <<< V1.4 change|addition
+   peakDir=\$analysis/06.NoInputPeaks                 # <<< V1.4 change|addition
+    FASTQC=\$analysis/FASTQC                          # <<< V1.4 change|addition
+      keep=$keep
+      temp=$temp
+FragLenEst=$FragLenEst
+
+
+#Variables:
+    fastqc=/Bioinformatics/apps/FastQC/FastQC-0.11.2/fastqc
+   MarkDup=/Bioinformatics/apps/picard-tools/picard-tools-1.94/MarkDuplicates.jar
+     bsmap=/home/edahi/download/code/bsmap-2.90/bsmap
+ fastqdump=/home/edahi/download/code/sra/sratoolkit.2.8.2-1-ubuntu64/bin/fastq-dump
+    Mratio=/home/edahi/usr/bin/methratio.py
+    genome=/mnt/BioAdHoc/Groups/RaoLab/Edahi/01.Genomes/\${Organism}/UCSC/\${GenVer}/Sequence/WholeGenomeFasta/Lambda_genome.fa               # <<< V1.3 change|addition
+genomesize=/mnt/BioAdHoc/Groups/RaoLab/Edahi/01.Genomes/\${Organism}/UCSC/\${GenVer}/Sequence/WholeGenomeFasta/Lambda_genome.fa.fai           # <<< V1.3 change|addition
+ Blacklist=/mnt/BioAdHoc/Groups/RaoLab/Edahi/01.Genomes/\${Organism}/UCSC/\${GenVer}/Sequence/Blacklist/\${GenVer}.blacklist.bed              # <<< V1.3 change|addition
+    Btools=/mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/01.Downloaded/bedtools2/bin/bedtools
+   makeTag=/mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/01.Downloaded/HOMER/bin/makeTagDirectory # <<< V1.2 change|addition
+    makeBG=/mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/01.Downloaded/HOMER/bin/makeUCSCfile
+    RunSPP=/mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/01.Downloaded/phantompeakqualtools/run_spp.R
+     Mcall=/share/apps/moab/bin/mcall
+      py27=/share/apps/python/python-2.7.13/bin/python
+     MACS2=/share/apps/python/python-2.7.6/bin/macs2
+     bg2bw=/share/apps/UCSC/bedGraphToBigWig
+   Rscript=/share/apps/R/3.1.0/bin/Rscript
+      samF=/share/apps/samtools-1.8/bin/                    # <<< V1.2 change|addition
+       sam=/share/apps/samtools-1.8/bin/samtools            # <<< V1.2 change|addition
+ 
+
+
+# Generate Directories Framework:
+mkdir -p \$softlink \$mapping/\${name} \$FASTQC \$FragLenEst \$ssp \$peakDir
+
+# <<< V1.2 change|addition
+if [ "\$srr" == "PROXI" ]; then     # <<<<<< If data existed before ONLY PAIRED END || Also downloaded names has to match the given name (That will be used throughout the analysis).
+ # >>>>>> Create Softlinks for ${name}
+ ln --force -s \$download/\${name}_R1.fastq \${softlink}/${name}_R1.fastq
+ ln --force -s \$download/\${name}_R2.fastq \${softlink}/${name}_R2.fastq
+
+ # >>>>>> FASTQC for downloaded files
+ \$fastqc \${softlink}/\${name}_R1.fastq --outdir=\$FASTQC &
+ \$fastqc \${softlink}/\${name}_R2.fastq --outdir=\$FASTQC & 
+
+ # >>>>>> Mapping
+ cd       \$mapping/\${name}
+ \$bsmap -a \${softlink}/${name}_R1.fastq -b \${softlink}/${name}_R2.fastq  -d \$genome -o \$mapping/\${name}/\${name}.sam -v 15 -w 3 -p 4 -S 1921 -q 20 -r 0 -R -V 2 > \$mapping/\${name}/bsmap_log.txt
+else
+
+ # >>>>>> Download Files for ${name} -- $srr
+ \$fastqdump --dumpbase --clip --outdir \$download --gzip -A \$srr --split-3  --split-files # <<< V1.1 change|addition
+ 
+ # >>>>>> Test if Paired-End Experiment:                                                    # <<< V1.1 change|addition
+ test -f \$download/\${srr}_2.fastq.gz && PE=1 || PE=0
+ [[ \$PE == "1" ]] && layout=PE || layout=SE
+ if [ "\$PE" = "1" ]; then
+  # >>>>>> decompress FASTQ files for mapping
+  zcat \$download/${srr}_1.fastq.gz  > \$temp/\${name}_R1.fastq
+  zcat \$download/${srr}_2.fastq.gz  > \$temp/\${name}_R2.fastq
+ 
+  # >>>>>> Create Softlinks for ${name}
+  ln --force -s \$temp/\${name}_R1.fastq \${softlink}/${name}_R1.fastq
+  ln --force -s \$temp/\${name}_R2.fastq \${softlink}/${name}_R2.fastq 
+ 
+  # >>>>>> FASTQC for downloaded files
+  \$fastqc \${softlink}/\${name}_R1.fastq --outdir=\$FASTQC &
+  \$fastqc \${softlink}/\${name}_R2.fastq --outdir=\$FASTQC & 
+ 
+  # >>>>>> Mapping
+  cd       \$mapping/\${name}
+  \$bsmap -a \${softlink}/${name}_R1.fastq -b \${softlink}/${name}_R2.fastq  -d \$genome -o \$mapping/\${name}/\${name}.sam -v 15 -w 3 -p 4 -S 1921 -q 20 -r 0 -R -V 2 > \$mapping/\${name}/bsmap_log.txt
+ 
+ # >>>>>> If Single-End Experiment:                                                    # <<< V1.1 change|addition
+ else
+  # >>>>>> decompress FASTQ files for mapping
+  zcat \$download/${srr}.fastq.gz  > \$temp/\${name}_R1.fastq
+ 
+ 
+  # >>>>>> Create Softlinks for ${name}
+  ln --force -s \$temp/\${name}_R1.fastq \${softlink}/${name}_R1.fastq
+ 
+  # >>>>>> FASTQC for downloaded files
+  \$fastqc \${softlink}/\${name}_R1.fastq --outdir=\$FASTQC &
+ 
+  # >>>>>> Mapping
+  cd       \$mapping/\${name}
+  \$bsmap -a \${softlink}/${name}_R1.fastq -d \$genome -o \$mapping/\${name}/\${name}.sam -v 15 -w 3 -p 4 -S 1921 -q 20 -r 0 -R -V 2 > \$mapping/\${name}/bsmap_log.txt
+ 
+ fi
+fi  
+ 
+[[ \$lambda == "1" ]] &&  grep Lambda \$mapping/\${name}/\${name}.sam > \$mapping/\${name}/\${name}.Lambda.sam
+grep -v Lambda \$mapping/\${name}/\${name}.sam > \$mapping/\${name}/\${name}.\${GenVer}.sam
+rm \$mapping/\${name}/\${name}.sam
+
+# >>>>>> Obtain Bisulfite conversion  treatments rates raw.
+[[ \$lambda == "1" ]] && \$Mcall -m \$mapping/\${name}/\${name}.Lambda.sam    --statsOnly 1
+\$Mcall -m \$mapping/\${name}/\${name}.\${GenVer}.sam      --statsOnly 1
+
+# >>>>>> BAM files generation:
+[[ \$lambda == "1" ]] && \$sam view -bSh -F 4 \$mapping/\${name}/\${name}.Lambda.sam | \$sam sort -T \$temp/\${name} -o \$mapping/\${name}/\${name}.Lambda.dup.bam -O BAM -@ 4 -
+[[ \$lambda == "1" ]] && \$sam index \$mapping/\${name}/\${name}.Lambda.dup.bam
+\$sam view -bSh -F 4 \$mapping/\${name}/\${name}.\${GenVer}.sam   | \$sam sort -T \$temp/\${name} -o \$mapping/\${name}/\${name}.\${GenVer}.dup.bam -O BAM -@ 4 -
+\$sam index \$mapping/\${name}/\${name}.\${GenVer}.dup.bam
+
+# >>>>>> Remove Duplicates:
+java -jar \$MarkDup INPUT=\$mapping/\${name}/\${name}.\${GenVer}.dup.bam   OUTPUT=\$mapping/\${name}/\${name}.\${GenVer}.bl.bam METRICS_FILE=\$mapping/\${name}/\${name}.\${GenVer}_PicardMetrics.txt   REMOVE_DUPLICATES=true ASSUME_SORTED=true
+[[ \$lambda == "1" ]] && java -jar \$MarkDup INPUT=\$mapping/\${name}/\${name}.Lambda.dup.bam OUTPUT=\$mapping/\${name}/\${name}.Lambda.bam  METRICS_FILE=\$mapping/\${name}/\${name}.Lambda_PicardMetrics.txt REMOVE_DUPLICATES=true ASSUME_SORTED=true
+
+# >>>>>> Whitelist:
+\$Btools intersect -a \$mapping/\${name}/\${name}.\${GenVer}.bl.bam -b \$Blacklist -v > \$mapping/\${name}/\${name}.\${GenVer}.bam
+
+# >>>>>> FragLenEst
+  \$sam view -F 0x0204 -o - \$mapping/\${name}/\${name}.\${GenVer}.bam | 
+    awk 'BEGIN{OFS="\t"}{if (and(\$2,16) > 0) {print \$3,(\$4-1),(\$4-1+length(\$10)),"N","1000","-"} else {print \$3,(\$4-1),(\$4-1+length(\$10)),"N","1000","+"} }' | 
+    gzip -c > \$FragLenEst/\${name}.Raw.tagAlign.gz 
+
+# >>>>>> Run ssp [PhantomPeaks]
+\$Rscript \$RunSPP -rf \\
+    -s=-100:5:600 \\
+    -c=\$FragLenEst/\${name}.Raw.tagAlign.gz -savp \\
+    -out=\$ssp/\${name}.Raw.FragLenEst.tab 
+
+# >>>>>> fragmentLengthEstimate
+cat \$ssp/\${name}.Raw.FragLenEst.tab |awk '{print \$3}'|cut -d ',' -f 1 > \$FragLenEst/\${name}.Raw.FragLenEst.cat
+
+# # >>>>>> Obtain Bisulfite conversion  treatments rates clean.
+# [[ \$lambda == "1" ]] && \$Mcall -m \$mapping/\${name}/\${name}.Lambda.bam    --statsOnly 1
+# \$Mcall -m \$mapping/\${name}/\${name}.\${GenVer}.bam      --statsOnly 1
+
+# # >>>>>> Methylation Calls
+# \$Mratio -o \$MethCall/\${name}/\${name}.\${GenVer}.meth.CG    -d \$genome  -s \$samF  -u  -i "correct"  -x CG  -g \$mapping/\${name}/\${name}.\${GenVer}.bam    >  \$MethCall/\${name}/\${name}.Methratio.\${GenVer}.log 
+# [[ \$lambda == "1" ]] && \$Mratio -o \$MethCall/\${name}/\${name}.Lambda.meth.CG  -d \$genome  -s \$samF  -u  -i "correct"  -x CG  -g \$mapping/\${name}/\${name}.Lambda.bam  >  \$MethCall/\${name}/\${name}.Methratio.Lambda.log 
+
+# >>>>>> Call peaks w/o input:
+\$MACS2 callpeak -t \$mapping/\${name}/\${name}.\${GenVer}.bam    -f BAMPE  -n \$peakDir/MACS2.\${name}.whitelist -g \${macsGen} -q 0.0001  --keep-dup all --nomodel --call-summits  # <<< V1.2 change|addition
+
+
+EOF
+  
+# >>> If selected, Run job
+if [ "$run" = "1" ]; then
+# echo "Running Job"
+ qsub $Jobs/CMSIP.v${Ver}.${GenVer}.SRR.${name}.sh # <<< V1.3 change|addition
+fi

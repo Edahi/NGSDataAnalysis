@@ -1,0 +1,235 @@
+#!/bin/bash
+
+# GRO-Seq Mapping for mm10 Single End data Existing Files.
+# Author: Edahi Gonzalez-Avalos
+# Email:  edahi@lji.org
+# Date:   2019.06.12
+# Versions logs
+# v1.
+#  Mapping
+
+#  Used in:
+#  (1) /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/GROSeq_mm10_SE_SRR_v1 -s SRR3619368  -n restingBcells   -a $E/Projects/00.TransitoryQuestions/10.eRNA_and_5hmC/02.mBcells/ -d /mnt/BioScratch/edahi/GROseq -t /mnt/BioScratch/edahi/GROseq -g mm10  -r
+#  (2) /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/GROSeq_mm10_SE_SRR_v1 -s SRR3619369  -n activatedBcells -a $E/Projects/00.TransitoryQuestions/10.eRNA_and_5hmC/02.mBcells/ -d /mnt/BioScratch/edahi/GROseq -t /mnt/BioScratch/edahi/GROseq -g mm10  -r
+#  ()  
+
+# >>> How to use the program:
+
+usage()
+{
+printf "
+usage: /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/GROSeq_mm10_SE_SRR_v1    <PARAMETERS>
+\nReq:\t[-s | --SRR       <str> ]  SRR for fastq-dump                           def:NONE -- Required (e.g. SRR3619368)
+\nReq:\t[-g | --Genome    <str> ]  Genome Version  mm9|mm10|hg18|hg19|hg38      def:NONE -- Required
+\n\t[-n | --name      <str> ]  Analysis file name                           def:Same as filename prefix 
+\n\t[-d | --download  <str> ]  DownloadPath                                 def:/mnt/beegfs 
+\n\t[-a | --analysis  <str> ]  AnalysisPath                                 def:/mnt/BioScratch/edahi/ 
+\n\t[-t | --temp      <str> ]  TemporalPath                                 def:/mnt/BioScratch/edahi 
+\n\t[-b | --barcode     <#> ]  Barcode sequence length to remove --if any   def:0 
+\n\t[-q | --queue           ]  Set 'rao-exclusive' queue                    def:'default' 
+\n\t[-r | --run             ]  Run generated job                            def:no   
+\n\t[-k | --keep            ]  Keep intermediate results                    def:no   
+\n\t[   | --noQC            ]  Turn Off QC analysis                         def:On
+\n\t[-h | --help            ]  Show this message and exit\n\n"
+}
+
+# >>> Check if arguments given:
+if [ "$1" == "" ]; then
+  usage
+  exit 1
+fi
+
+# >>> Declare Variables
+download=/mnt/beegfs
+analysis=/mnt/BioScratch/edahi
+TEMP=/mnt/BioScratch/edahi
+surname=
+name=
+GenVer=mm10
+barcode=
+raoqueue=0
+keep=0
+run=0
+runQC=1
+RandomSeed=$RANDOM
+
+# >>> Assign arguments to variables
+while [ "$1" != "" ]; do
+    case $1 in
+        -s | --PRE )            shift
+                                surname=$1
+                                ;;
+        -n | --name )           shift
+                                name=$1
+                                ;;
+        -g | --GenVer )         shift
+                                GenVer=$1
+                                ;;
+        -c | --Config )         shift
+                                Config=$1
+                                ;;
+        -d | --download )       shift
+                                download=$1
+                                ;;
+        -a | --analysis )       shift
+                                analysis=$1
+                                ;;
+        -m | --Mapper )         shift
+                                Mapper=$1
+                                ;;
+        -s | --MapStrand  )     shift
+                                MapStrand=$1
+                                ;;
+        -q | --queue  )         raoqueue=1
+                                ;;
+        -r | --run    )         run=1
+                                ;;
+        -k | --keep  )          keep=1
+                                ;;
+             --noQC  )          runQC=0
+                                ;;
+        -b | --barcode )        shift
+                                barcode=$1
+                                ;;
+        -t | --temp )           shift
+                                TEMP=$1
+                                ;;
+        -h | --help )           usage
+                                exit
+                                ;;
+        * )                     usage
+                                exit 1
+    esac
+    shift
+done
+
+# >>> Check if File surname was given:
+[[ $surname = "" ]] &&  printf "\n\tNo SRR code was given. \n\tCheck --help for further assistance.\n\n" && exit
+[[ $name = "" ]] && name=$surname
+
+# >>> Check if valid Genome version build was given:
+list=(mm9 mm10 hg18 hg19 hg38)
+Over(){ printf "\n\tProvide a valid genome build version \n\tCheck --help for further assistance\n\n" ; exit;}
+[[ ${list[@]} =~ (^|[[:space:]])$GenVer($|[[:space:]]) ]]  ||  Over
+[[ $GenVer =~ (^hg) ]] && Organism=Homo_sapiens ||  Organism=Mus_musculus
+
+# >>> Obtain parameters for script:
+[[ $raoqueue == "1" ]]  && Parameters=" "${Parameters}" -q" && raoqueue=rao-exclusive ||  raoqueue=default
+[[ $run == "1" ]]       && Parameters=" "${Parameters}" -r"
+[[ $keep == "1" ]]      && Parameters=" "${Parameters}" -k"
+
+# >>> Print Settings information:
+printf '\nSRR:\t%s\nPBS Queue:\t%s\nOrganism:\t%s \nGenome Version:\t%s\nRandomSeed:\t%s \nBarcode:\t%s \n\n' $surname $raoqueue $Organism $GenVer $RandomSeed $barcode
+
+Jobs=$analysis/Jobs
+mkdir -p $Jobs
+
+# >>> Download BaseSpace data:
+cat <<EOF> $Jobs/GROSeq.SRR.${GenVer}.${name}.v1.sh
+#!/bin/bash -ex
+#PBS -N GROSeq.SRR.${GenVer}.${name}.v1
+#PBS -l walltime=24:00:00
+#PBS -o $Jobs/GROSeq.SRR.${GenVer}.${name}.v1.out
+#PBS -e $Jobs/GROSeq.SRR.${GenVer}.${name}.v1.out
+#PBS -j oe
+#PBS -l nodes=1:ppn=4
+#PBS -M edahi@lji.org
+#PBS -l mem=40GB
+#PBS -m ae
+#PBS -q $raoqueue
+
+# Prepare for analysis:
+     runQC=$runQC
+   surname=$surname
+      name=$name
+   barcode=$barcode
+    GenVer=$GenVer
+  Organism=$Organism
+      TEMP=${TEMP}/GROseq_analysis_rand${RandomSeed}
+  download=$download
+  analysis=$analysis
+      Jobs=$analysis/Jobs
+  softlink=$analysis/01.Data
+       Map=$analysis/02.Mapping
+   TagDirs=$analysis/03.TagDirectories
+   BigWigs=$analysis/04.BigWigs
+    Tracks=$analysis/Tracks
+    FASTQC=$analysis/FASTQC
+   multiQC=/home/edahi/download/code/MultiQC/scripts/multiqc
+   
+   
+#Variables & files:
+    fastqc=/Bioinformatics/apps/FastQC/FastQC-0.11.2/fastqc
+    tophat=/home/danielasc/software/tophat-2.1.1.Linux_x86_64/tophat2
+       bwa=/home/edahi/download/code/bwa/bwa
+      STAR=/home/edahi/download/code/STAR/bin/Linux_x86_64_static/STAR
+   mTagDir=/home/edahi/download/code/HOMER/bin/makeTagDirectory
+ fastqdump=/home/edahi/download/code/sra/sratoolkit.2.8.2-1-ubuntu64/bin/fastq-dump
+    fcount=/home/edahi/download/code/subread-1.5.3-Linux-x86_64/bin/featureCounts
+ mMultiWig=/home/edahi/download/code/HOMER/bin/makeMultiWigHub.pl
+  cutadapt=/share/apps/python/python-3.4.6/bin/cutadapt
+      Calc=/share/apps/UCSC/calc
+         R=/share/apps/R/3.3.3/bin/R
+       sam=/usr/bin/samtools
+
+
+# >>>>>> Build directories:
+mkdir -p \$TEMP \$FASTQC \$softlink \$Map \$TagDirs \$BigWigs \$Tracks
+
+# >>>>>> Download SRR file:
+\$fastqdump --dumpbase --skip-technical --clip --outdir \$download --gzip -A $surname --split-3  --split-files
+
+# >>> Merge lanes
+zcat \$download/\${surname}.fastq.gz > \$TEMP/\${name}_R1_merged.fastq
+
+# >>> rm barcodes (if any)
+if [ "\$barcode" != "" ]; then
+  printf "Removing '%s' Barcode sequence...\n" \$barcode
+  \$cutadapt -a \$barcode -z -e 0.10 --minimum-length=32 --output=\$TEMP/\${name}_R1_polyA.fastq \$TEMP/\${name}_R1_merged.fastq  2>&1 >> \$Map/\${name}_RunCutadapt.txt
+else 
+  mv \$TEMP/\${name}_R1_merged.fastq \$TEMP/\${name}_R1_polyA.fastq
+fi
+
+# >>> Remove Poly-A tails:
+\$cutadapt -a AAAAAAAAAAAAAAAAAAAA -z -e 0.10 --minimum-length=32 --output=\$TEMP/\${name}_R1.fastq \$TEMP/\${name}_R1_polyA.fastq 2>&1 >> \$Map/\${name}_RunCutadapt.txt
+ln -s \$TEMP/\${name}_R1.fastq \$softlink/\${name}_R1.fastq
+
+# >>> FASTQC
+   \$fastqc \$softlink/\${name}_R1.fastq --outdir=\$FASTQC &
+#    [[ \$PE == "1" ]]  &&  \$fastqc \$softlink/\${name}_R2.fastq --outdir=\$FASTQC &
+
+# >>> Align to the Reference Genome Index.
+\$bwa aln -n 2 -l 32 -t 2 /mnt/BioAdHoc/Groups/RaoLab/Edahi/01.Genomes/\$Organism/UCSC/\$GenVer/Sequence/BWAIndex/genome.fa \$softlink/\${name}_R1.fastq \$R2 > \$TEMP/\${name}.bwa.sai
+\$bwa samse /mnt/BioAdHoc/Groups/RaoLab/Edahi/01.Genomes/\$Organism/UCSC/\$GenVer/Sequence/BWAIndex/genome.fa -n 1 \$TEMP/\${name}.bwa.sai \$softlink/\${name}_R1.fastq \$R2 > \$TEMP/\${name}.bwa.sam
+
+# >>> BAM / Sort / Indexing:
+\$sam view -bhS -F 4 \$TEMP/\${name}.bwa.sam | \$sam sort - \$Map/\${name}.bwa && \$sam index \$Map/\${name}.bwa.bam
+
+# >>> Create Tag Directory
+\$mTagDir \$TagDirs/\${name} \$Map/\${name}.bwa.bam \
+  -genome \$GenVer  -checkGC 
+
+# >>>>>> Mapping stats recollection:
+echo \${name}  > \$TEMP/\${name}.SS.00.txt       # <<< Name
+Treads=\`\$sam view -Sc \$TEMP/\${name}.bwa.sam\`  # <<< Total  Reads
+Mreads=\`\$sam view  -c \$Map/\${name}.bwa.bam\`  # <<< Mapped Reads
+echo \$Treads > \$TEMP/\${name}.SS.01.txt
+echo \$Mreads > \$TEMP/\${name}.SS.02.txt
+\$Calc "\$Mreads * 100 / \$Treads" | cut -f2 -d= > \$TEMP/\${name}.SS.03.txt    # <<< Percentage of Mapped Reads
+
+paste -d, \$TEMP/\${name}.SS.0[0-3].txt >> \$analysis/AllMappingStats.csv
+
+if [ "$keep" = "0" ]; then
+ rm -r \$TEMP/
+fi
+
+EOF
+if [ "$run" = "1" ]; then
+#  echo "Running Job"
+ qsub $Jobs/GROSeq.SRR.${GenVer}.${name}.v1.sh
+fi
+
+exit
+
+EOF>
+echo 

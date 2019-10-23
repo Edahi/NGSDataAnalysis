@@ -1,0 +1,420 @@
+#!/bin/bash
+
+# ChIP-seq Standarized pipeline ChIPseq: Version -- 01.0
+# Author: Edahi Gonzalez-Avalos
+# Email:  edahi@lji.org
+# Date:   2019.10.02
+# Versions logs
+# v1.
+
+#  Used in:
+#  (1) SRR5582480 NIH3T3
+#  (2) /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/Daniela/01.Pol2_TETs/README.AllThisChIPs.sh
+#  (3) /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/Hyungseok/01.Tox_Tox2_KnockOuts_in_CD8posTcells/README.01.AnjanaPublicData.sh
+#  (4) 
+
+# >>> Pipeline Version:
+Ver=1.0
+
+# >>> How to use the program:
+
+usage()
+{
+printf "
+usage: /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/ChIP_like_pipeline_SRR_v1    <PARAMETERS>
+\nReq:\t[-s | --SRA         <#> ]  SRA ID                                       def:NONE -- Required Argument 
+\nReq:\t[-g | --Genome    <str> ]  Genome Version  mm10|hg38                    def:NONE -- Required Argument 
+\nReq:\t[-n | --Name      <str> ]  SampleName                                   def:NONE -- Required Argument 
+\n\t[-m | --method    <str> ]  What is this? ChIP|MeDIP|hMeDIP|etc          def:ChIPseq
+\n\t[-d | --download  <str> ]  DownloadPath                                 def:/mnt/beegfs 
+\n\t[-a | --analysis  <str> ]  AnalysisPath                                 def:/mnt/BioScratch/edahi/ 
+\n\t[-b | --barcode     <#> ]  Barcode sequence length to remove --if any   def:0 
+\n\t[-t | --temp      <str> ]  TemporalPath                                 def:/mnt/BioScratch/edahi 
+\n\t[-q | --queue           ]  Set 'rao-exclusive' queue                    def:'default' 
+\n\t[-r | --run             ]  Run generated job                            def:no   
+\n\t[-k | --keep            ]  Keep intermediate results                    def:no   
+\n\t[   | --NoAnal          ]  Stop after Data download                     def:Off
+\n\t[-h | --help            ]  Show this message and exit\n\n"
+}
+
+# >>> Check if arguments given:
+if [ "$1" == "" ]; then
+  usage
+  exit 1
+fi
+
+# >>> Declare Variables
+TEMP=/mnt/BioScratch/edahi
+download=/mnt/beegfs
+analysis=/mnt/BioAdHoc/Groups/RaoLab/temp
+srr=
+SeqMethod=ChIPseq
+name=chip_v${Ver}
+barcode=0
+raoqueue=0
+keep=0
+Stahp=0
+run=0
+RandomSeed=$RANDOM
+
+# >>> Assign arguments to variables
+while [ "$1" != "" ]; do
+    case $1 in
+        -s | --SRR )            shift
+                                srr=$1
+                                ;;
+        -n | --name )           shift
+                                name=$1
+                                ;;
+        -g | --GenVer )         shift
+                                GenVer=$1
+                                ;;
+        -m | --method   )       shift
+                                SeqMethod=$1
+                                ;;
+        -d | --download )       shift
+                                download=$1
+                                ;;
+        -a | --analysis )       shift
+                                analysis=$1
+                                ;;
+        -b | --barcode )        shift
+                                barcode=$1
+                                ;;
+        -t | --temp )           shift
+                                temp=$1
+                                ;;
+        -q | --queue  )         raoqueue=1
+                                ;;
+        -k | --keep  )          keep=1
+                                ;;
+             --NoAnal )         Stahp=1
+                                ;;
+        -r | --run    )         run=1
+                                ;;
+        -h | --help )           usage
+                                exit
+                                ;;
+        * )                     usage
+                                exit 1
+    esac
+    shift
+done
+
+#  >>> Check if File surname was given:
+[[ $srr = "" ]] &&  printf "\n\tSRA ID '--SRA' is a required argument. \n\tCheck --help for further assistance.\n\n" && exit
+[[ $name = "" ]] &&  printf "\n\tName '--Name' is a required argument. \n\tCheck --help for further assistance.\n\n" && exit
+
+# >>> Check if valid Genome version build was given:
+list=(mm10 hg38)
+Over(){ printf "\n\tProvide a valid genome build version \n\tCheck --help for further assistance\n\n" ; exit;}
+[[ ${list[@]} =~ (^|[[:space:]])$GenVer($|[[:space:]]) ]]  ||  Over
+[[ $GenVer =~ (^hg) ]] && Organism=Homo_sapiens ||  Organism=Mus_musculus
+
+# >>> Obtain parameters for script:
+[[ $raoqueue == "1" ]]  && raoqueue=rao-exclusive ||  raoqueue=default
+
+# >>> Print Settings information:
+printf '\nSRA ID #:\t%s\nSeq-Method:\t%s\nPBS Queue:\t%s\nOrganism:\t%s \nGenome Version:\t%s\nRandomSeed:\t%s\n\n' $srr $SeqMethod $raoqueue $Organism $GenVer $RandomSeed
+
+Jobs=$analysis/Jobs
+mkdir -p $Jobs
+
+
+      Jobs=$analysis/Jobs
+
+mkdir -p $Jobs
+cat <<EOF> $Jobs/${SeqMethod}.v${Ver}.${GenVer}.${name}.sh
+#!/bin/bash -ex
+#PBS -N ${name}.${SeqMethod}.${GenVer}.v1
+#PBS -l walltime=168:00:00
+#PBS -o $Jobs/${SeqMethod}.v${Ver}.${GenVer}.${name}.out
+#PBS -e $Jobs/${SeqMethod}.v${Ver}.${GenVer}.${name}.out
+#PBS -j oe
+#PBS -l nodes=1:ppn=4
+#PBS -M edahi@lji.org
+#PBS -l mem=20GB
+#PBS -m ae
+#PBS -q $raoqueue
+
+export PATH=/share/apps/R/3.1.0/bin:/share/apps/UCSC:/share/apps/python/python-3.4.6/bin:/share/apps/python/python-2.7.13/bin:/share/apps/perl/perl-5.18.1-threaded/bin/:/share/apps/gcc/6.3/bin:/mnt/BioApps/pigz/latest/bin:/share/apps/bin:/usr/local/maui/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/opt/stack/bin:/share/apps/java/latest/bin:/share/apps/bowtie/bowtie2-2.1.0:/share/apps/bowtie/bowtie-1.1.2:/usr/local/cuda/bin:/share/apps/dos2unix/latest/bin:/share/apps/bedtools/bin:/share/apps/HOMER/bin
+printf "PATH Used:\n\$PATH\n\n"
+unset PYTHONPATH
+
+#Variables:
+    fastqc=/Bioinformatics/apps/FastQC/FastQC-0.11.2/fastqc
+   MarkDup=/Bioinformatics/apps/picard-tools/picard-tools-1.94/MarkDuplicates.jar
+      bwaI=/mnt/BioAdHoc/Groups/RaoLab/Edahi/01.Genomes/${Organism}/UCSC/${GenVer}/Sequence/BWAIndex/genome.fa
+    genome=/mnt/BioAdHoc/Groups/RaoLab/Edahi/01.Genomes/${Organism}/UCSC/${GenVer}/Sequence/WholeGenomeFasta/genome.fa
+genomesize=/mnt/BioAdHoc/Groups/RaoLab/Edahi/01.Genomes/${Organism}/UCSC/${GenVer}/Sequence/WholeGenomeFasta/genome.fa.size 
+ Blacklist=/mnt/BioAdHoc/Groups/RaoLab/Edahi/01.Genomes/${Organism}/UCSC/${GenVer}/Sequence/Blacklist/Blacklist.bed
+    Btools=/mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/01.Downloaded/bedtools2/bin/bedtools
+       bwa=/mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/01.Downloaded/bwa/bwa
+       Ann=/mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/01.Downloaded/HOMER/bin/annotatePeaks.pl
+  getPeaks=/mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/01.Downloaded/HOMER/bin/findPeaks
+ mMultiWig=/mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/01.Downloaded/HOMER/bin/makeMultiWigHub.pl
+   makeTag=/mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/01.Downloaded/HOMER/bin/makeTagDirectory
+    makeBG=/mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/01.Downloaded/HOMER/bin/makeUCSCfile
+    RunSPP=/mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/01.Downloaded/phantompeakqualtools/run_spp.R
+ fastqdump=/mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/01.Downloaded/sratoolkit.2.9.0-ubuntu64/bin/fastq-dump
+trimgalore=/mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/01.Downloaded/TrimGalore-0.4.3/trim_galore
+    BamCov=/share/apps/python/python-3.4.6/bin/bamCoverage
+   Rscript=/share/apps/R/3.1.0/bin/Rscript
+     bg2bw=/share/apps/UCSC/bedGraphToBigWig
+      samF=/share/apps/samtools-1.8/bin/                    # <<< V1.2 change|addition
+       sam=/share/apps/samtools-1.8/bin/samtools            # <<< V1.2 change|addition
+
+# From Script:
+      TEMP=/mnt/BioScratch/edahi/
+  download=$download
+   barcode=$barcode
+       srr=$srr
+      name=$name
+  analysis=$analysis
+  softlink=\$analysis/01.Data
+   mapping=\$analysis/02.Mapping
+   TagDirs=\$analysis/03.TagDirectories
+FragLenEst=\$analysis/04.FragmentLengthEstimates
+       ssp=\$analysis/05.SSP
+   peakDir=\$analysis/06.Peaks
+   BigWigs=\$analysis/07.BigWigs
+    FASTQC=\$analysis/FASTQC
+  FASTQCun=\$analysis/FASTQC_UnMap
+      keep=$keep
+      Jobs=$Jobs
+     Stahp=$Stahp
+
+# Generate Directories Framework:
+mkdir -p \$softlink \$mapping/\${name} \$TagDirs \$FragLenEst \$ssp \$peakDir \$BigWigs \$FASTQC \$FASTQCun
+
+# >>>>>> Download Files for ${name} -- $srr
+[[ \$srr == "PROXI" ]] && printf "\nData downloaded before, skipping download...\n" ||  \$fastqdump --dumpbase --skip-technical --split-3  --split-files --clip --outdir \$download --gzip -A \$srr
+
+# >>>>>> After Data prunned, check if analysis is neccesary.
+[[ \$Stahp == "1" ]] && exit
+
+# >>> check if PE:
+test -f \$download/\${srr}_2.fastq.gz && PE=1 || PE=0
+[[ \$PE == "1" ]] && layout=PE || layout=SE
+
+
+# >>>>>> Summary Statistics (0) --  Name
+echo \${name} > \$mapping/\${name}/SummaryStats00.txt
+
+if [ "\$PE" = "1" ]; then
+
+# >>>>>>
+# >>>>>> Paired-End Experiment:
+# >>>>>>
+
+ # >>> Merge lanes & rm barcodes (if any) & Trim extra bases (if any):
+ # >>> Barcode and trim are mutually exclusive:
+ #     If I set ut the barcode, then i might lose valuable information by trimming
+ #     If I select trim, then it will remove information that could possibly be disregarded.
+
+ if [ "\$barcode" = "0" ]; then
+  printf "No Barcode to remove...\n"
+  zcat \$download/\${srr}_1.fastq.gz  > \$TEMP/\${name}_R1.fastq && ln --force -s \$TEMP/\${name}_R1.fastq \$softlink/\${name}_R1.fastq
+  zcat \$download/\${srr}_2.fastq.gz  > \$TEMP/\${name}_R2.fastq && ln --force -s \$TEMP/\${name}_R2.fastq \$softlink/\${name}_R2.fastq
+ else
+  # >>> Barcode!=0
+  printf "Removing %s Barcode bases...\n" \$barcode
+  zcat \$download/\${srr}_1.fastq.gz  | sed '2~2s/^.\{'\$barcode'\}//g'  > \$TEMP/\${name}_R1.fastq && ln --force -s \$TEMP/\${name}_R1.fastq \$softlink/\${name}_R1.fastq
+  zcat \$download/\${srr}_2.fastq.gz  | sed '2~2s/^.\{'\$barcode'\}//g'  > \$TEMP/\${name}_R2.fastq && ln --force -s \$TEMP/\${name}_R2.fastq \$softlink/\${name}_R2.fastq
+ fi   
+
+ # >>>>>> FASTQC for downloaded file
+ \$fastqc \$softlink/\${name}_R1.fastq --outdir=\$FASTQC &
+ \$fastqc \$softlink/\${name}_R2.fastq --outdir=\$FASTQC &
+
+ R2=\$softlink/\${name}_R2.fastq
+ mMultiPar=" -flip -sspe"  
+
+ # >>>>>> Summary Statistics (1) --  Total reads
+ echo \$(cat \$softlink/\${name}_R1.fastq|wc -l)/4|bc > \$mapping/\${name}/SummaryStats01.txt
+
+ # >>>>>> BWA mem  -- (1st)
+ cd    \$mapping/\${name}
+ \$bwa mem -M -t 4 \$bwaI \${softlink}/\${name}_R1.fastq \${softlink}/\${name}_R2.fastq  > \$mapping/\${name}/\${name}.sam
+ \$sam view -Sbh \$mapping/\${name}/\${name}.sam > \$mapping/\${name}/\${name}.bam
+
+ # >>>>>> Filter unmapped reads
+ \$sam view -hb -f 4 \$mapping/\${name}/\${name}.bam > \$mapping/\${name}/\${name}.unmapped.bam
+ \$sam sort -T \$TEMP/\${name} -o \$mapping/\${name}/\${name}.namesort.unmapped.bam  -O BAM -@ 4 \$mapping/\${name}/\${name}.unmapped.bam
+ \$Btools bamtofastq -i \$mapping/\${name}/\${name}.namesort.unmapped.bam -fq \$mapping/\$name/\${name}_unmapped_1.fastq -fq2 \$mapping/\$name/\${name}_unmapped_2.fastq
+
+ # >>>>>> FASTQC for Unmapped reads
+ \$fastqc \$mapping/\$name/\${name}_unmapped_1.fastq --outdir=\$FASTQCun &
+ \$fastqc \$mapping/\$name/\${name}_unmapped_2.fastq --outdir=\$FASTQCun &
+
+ # >>>>>> trim_galore unmapped reads
+ \$trimgalore --paired --length 30 \
+   --stringency 3 --three_prime_clip_R1 1 --three_prime_clip_R2 1 \
+   \$mapping/\$name/\${name}_unmapped_1.fastq \$mapping/\$name/\${name}_unmapped_2.fastq -o \$mapping/\$name
+
+ # >>>>>> FASTQC for Trim_Galore filtered reads
+ \$fastqc \$mapping/\$name/\${name}_unmapped_1_val_1.fq --outdir=\$FASTQCun &
+ \$fastqc \$mapping/\$name/\${name}_unmapped_2_val_2.fq --outdir=\$FASTQCun &
+
+ # >>>>>> BWA mem -- (2nd)
+ \$bwa mem  -M -t 4 \$bwaI \$mapping/\$name/\${name}_unmapped_1_val_1.fq \$mapping/\$name/\${name}_unmapped_2_val_2.fq > \$mapping/\${name}/\${name}.remap.sam
+ \$sam view -Sbh \$mapping/\${name}/\${name}.remap.sam > \$mapping/\${name}/\${name}.remap.bam
+else
+
+# >>>>>>
+# >>>>>> Single-End Experiment:
+# >>>>>>
+
+ if [ "\$barcode" = "0" ]; then
+  printf "No Barcode to remove...\n"
+  zcat \$download/\${srr}.fastq.gz  > \$TEMP/\${name}_R1.fastq && ln --force -s \$TEMP/\${name}_R1.fastq \$softlink/\${name}_R1.fastq
+ else
+  # >>> Barcode!=0
+  printf "Removing %s Barcode bases...\n" \$barcode
+  zcat \$download/\${srr}.fastq.gz  | sed '2~2s/^.\{'\$barcode'\}//g'  > \$TEMP/\${name}_R1.fastq && ln --force -s \$TEMP/\${name}_R1.fastq \$softlink/\${name}_R1.fastq
+ fi   
+
+ # >>>>>> FASTQC for downloaded file
+ \$fastqc \$softlink/\${name}_R1.fastq --outdir=\$FASTQC &
+
+ # >>>>>> Summary Statistics (1) --  Total reads
+ echo \$(cat \$softlink/\${name}_R1.fastq|wc -l)/4|bc > \$mapping/\${name}/SummaryStats01.txt
+
+ # >>>>>> BWA mem  -- (1st)
+ cd    \$mapping/\${name}
+ \$bwa mem  -M -t 4 \$bwaI \${softlink}/\${name}_R1.fastq  > \$mapping/\${name}/\${name}.sam
+ \$sam view -Sbh \$mapping/\${name}/\${name}.sam > \$mapping/\${name}/\${name}.bam
+
+ # >>>>>> Filter unmapped reads
+ \$sam view -hb -f 4 \$mapping/\${name}/\${name}.bam > \$mapping/\${name}/\${name}.unmapped.bam
+ \$sam sort -n -T \$TEMP/\${name} -o \$mapping/\${name}/\${name}.namesort.unmapped.bam  -O BAM -@ 4 \$mapping/\${name}/\${name}.unmapped.bam
+ \$Btools bamtofastq -i \$mapping/\${name}/\${name}.namesort.unmapped.bam -fq \$mapping/\$name/\${name}_unmapped_1.fastq
+
+ # >>>>>> FASTQC for Unmapped reads
+ \$fastqc \$mapping/\$name/\${name}_unmapped_1.fastq --outdir=\$FASTQCun &
+
+ # >>>>>> trim_galore unmapped reads
+ \$trimgalore --length 30 \
+   --stringency 3 --three_prime_clip_R1 1 \
+   \$mapping/\$name/\${name}_unmapped_1.fastq -o \$mapping/\$name
+
+ # >>>>>> FASTQC for Trim_Galore filtered reads
+ \$fastqc \$mapping/\$name/\${name}_unmapped_1_trimmed.fq --outdir=\$FASTQCun &
+
+ # >>>>>> BWA mem -- (2nd)
+ \$bwa mem  -M -t 4 \$bwaI \$mapping/\$name/\${name}_unmapped_1_trimmed.fq > \$mapping/\${name}/\${name}.remap.sam
+ \$sam view -Sbh \$mapping/\${name}/\${name}.remap.sam > \$mapping/\${name}/\${name}.remap.bam
+fi
+
+# >>>>>>
+# >>>>>> Shared Analysis:
+# >>>>>>
+
+# >>>>>> Get Mapped (Filter Reads) -- (1st)
+# >>>>>> Summary Statistics (2) -- First Mapped Reads 
+\$sam view -bh -F 4 \$mapping/\${name}/\${name}.bam > \$mapping/\${name}/\${name}.mapped.bam
+\$sam flagstat \$mapping/\${name}/\${name}.mapped.bam | head -n1 | cut -f1 -d\\    > \$mapping/\${name}/SummaryStats02.txt
+
+# >>>>>> Samtools sort -- (1st)
+\$sam sort -T \$TEMP/\${name} -o \$mapping/\${name}/\${name}.mapped.sorted.bam  -O BAM -@ 4 \$mapping/\${name}/\${name}.mapped.bam
+
+# >>>>>> Get Mapped (Filter Reads) -- (2nd)
+# >>>>>> Summary Statistics (3) -- Second Mapped Reads 
+\$sam view -bh -F 4 \$mapping/\${name}/\${name}.remap.bam >  \$mapping/\${name}/\${name}.remap.mapped.bam
+\$sam flagstat \$mapping/\${name}/\${name}.remap.mapped.bam | head -n1 | cut -f1 -d\\    > \$mapping/\${name}/SummaryStats03.txt
+
+# >>>>>> Samtools sort -- (2nd)
+\$sam sort -T \$TEMP/\${name} -o \$mapping/\${name}/\${name}.remap.mapped.sorted.bam  -O BAM -@ 4 \$mapping/\${name}/\${name}.remap.mapped.bam
+
+# >>>>>> Merge both mapping results
+\$sam merge -f \\
+  \$mapping/\${name}/\${name}.mapped.sorted.merged.bam \\
+  \$mapping/\${name}/\${name}.mapped.sorted.bam \\
+  \$mapping/\${name}/\${name}.remap.mapped.sorted.bam
+
+
+# >>>>>> Summary Statistics (4) -- Total Merged Mapped Reads
+\$sam flagstat \$mapping/\${name}/\${name}.mapped.sorted.merged.bam | head -n1 | cut -f1 -d\\    > \$mapping/\${name}/SummaryStats04.txt
+
+# >>>>>> Remove chrM
+\$sam view -h \$mapping/\${name}/\${name}.mapped.sorted.merged.bam | \\
+  perl -lane 'print \$_ if \$F[2] ne "chrM"' | \\
+  \$sam view -bSh - > \$mapping/\${name}/\${name}.mapped.sorted.merged.nochrM.Blacklist.bam
+
+# >>>>>> Summary Statistics (5) -- Mapped reads w/o chrM
+\$sam flagstat \$mapping/\${name}/\${name}.mapped.sorted.merged.nochrM.Blacklist.bam   | head -n1 | cut -f1 -d\\   > \$mapping/\${name}/SummaryStats05.txt
+
+# >>>>>> Remove Duplicates:
+java -jar \$MarkDup \
+   INPUT=\$mapping/\${name}/\${name}.mapped.sorted.merged.nochrM.Blacklist.bam \
+   OUTPUT=\$mapping/\${name}/\${name}.rmdup.bam \
+   METRICS_FILE=\$mapping/\${name}/\${name}_PicardMetrics.txt \
+   REMOVE_DUPLICATES=true \
+   ASSUME_SORTED=true
+
+# >>>>>> Summary Statistics (6) -- Deduplicated mapped reads w/o chrM
+\$sam flagstat \$mapping/\${name}/\${name}.rmdup.bam | head -n1 | cut -f1 -d\\    > \$mapping/\${name}/SummaryStats06.txt
+
+# >>>>>> Whitelist:
+\$Btools intersect -a \$mapping/\${name}/\${name}.rmdup.bam -b \$Blacklist -v > \$mapping/\${name}/\${name}.whitelist.bam
+
+# >>>>>> Summary Statistics (7) -- Whilelisted mapped reads w/o duplicates and chrM
+\$sam flagstat \$mapping/\${name}/\${name}.whitelist.bam | head -n1 | cut -f1 -d\\     > \$mapping/\${name}/SummaryStats07.txt
+
+# >>>>>> Gather all summaries:
+echo 'SampleName,RawReads,Mapped_1st,Mapped_2nd,TotalMapped,chrM_Filter,Duplicated_Filter,Whitelist_Filter' >  \$mapping/\${name}/Colnames.MappingStats.csv
+paste -d, \$mapping/\${name}/SummaryStats0[0-7].txt  >  \$mapping/\${name}/MappingStats.csv
+
+# >>>>>> TagDirectory:
+\$makeTag \$TagDirs/\${name} \$mapping/\${name}/\${name}.whitelist.bam
+
+# >>>>>> Create BigWigs:
+\$makeBG \$TagDirs/\${name} -o auto -fsize 1e20 
+zcat \$TagDirs/\${name}/\${name}.ucsc.bedGraph.gz | tail -n+2 | sort -k1,1 -k2,2n > \$TagDirs/\${name}/\${name}.ucsc.bedGraph
+\$bg2bw \$TagDirs/\${name}/\${name}.ucsc.bedGraph \$genomesize \$BigWigs/\${name}.whitelist.bw
+
+# >>> Add BigWigs to tracks file:
+echo track type=bigWig name=\${name}.whitelist description=\${name}.whitelist visibility=2 autoScale=off maxHeightPixels=40 viewLimits=0:200 color=255,0,0 graphType=bar bigDataUrl=http://informaticsdata.liai.org/NGS_analyses/ad_hoc/\${BigWigs/\\/mnt\/BioAdHoc\\//}/\${name}.whitelist.bw >> \${BigWigs}/ChIP_Tracks_Whitelist.txt
+
+# >>>>>> FragLenEst (Filtered):
+  \$sam view -F 0x0204 -o - \$mapping/\${name}/\${name}.whitelist.bam | 
+    awk 'BEGIN{OFS="\t"}{if (and(\$2,16) > 0) {print \$3,(\$4-1),(\$4-1+length(\$10)),"N","1000","-"} else {print \$3,(\$4-1),(\$4-1+length(\$10)),"N","1000","+"} }' | 
+    gzip -c > \$FragLenEst/\${name}.Filtered.tagAlign.gz 
+
+# >>>>>> Run ssp [PhantomPeaks] (Filtered)
+\$Rscript \$RunSPP -rf \
+    -s=-100:5:600 \
+    -c=\$FragLenEst/\${name}.Filtered.tagAlign.gz -savp \
+    -out=\$ssp/\${name}.Filtered.FragLenEst.tab 
+
+# >>>>>> fragmentLengthEstimate (Filtered)
+cat \$ssp/\${name}.Filtered.FragLenEst.tab |awk '{print \$3}'|cut -d ',' -f 1 > \$FragLenEst/\${name}.Filtered.FragLenEst.cat
+
+# >>>>>> Call Peaks
+\$getPeaks \$TagDirs/\${name} -style histone -region      -o \$peakDir/\${name}.peaks.Histone.txt
+\$getPeaks \$TagDirs/\${name} -style factor               -o \$peakDir/\${name}.peaks.Transcriptionfactor.txt 
+\$getPeaks \$TagDirs/\${name} -style super   -region      -o \$peakDir/\${name}.peaks.SuperEnhancers.txt
+
+if [ "\$keep" = "0" ]; then
+ # >>>>>> Remove Intermediate Mapping Files:
+ rm \$mapping/\${name}/\${name}*sam
+ rm \$mapping/\${name}/Summary*  
+ rm \$mapping/\${name}/\${name}*.mapped.*  
+ rm \$mapping/\${name}/\${name}*unmapped*[mqi]
+ rm \$mapping/\${name}/\${name}.rmdup.bam
+ rm \$mapping/\${name}/gmon.out
+ 
+ # >>>>>> Remove Intermediate bedgraph files bigwig
+ rm \$TagDirs/\${name}/\${name}.ucsc.bedGraph*
+
+ # >>>>>> Remove Intermediate files from PhantomPeaks
+ rm \$FragLenEst/\${name}.*.tagAlign.gz 
+fi
+
+EOF
+  
+# >>> If selected, Run job
+if [ "$run" = "1" ]; then
+ echo "Running Job"
+ qsub $Jobs/${SeqMethod}.v${Ver}.${GenVer}.${name}.sh
+fi

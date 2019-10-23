@@ -23,7 +23,6 @@ _Assay for Transposase-Accessible Chromatin followed by Sequencing_ yield genomi
 
 [Extended Analysis and code](https://github.com/Edahi/NGSDataAnalysis/tree/master/ATAC-Seq)
 
-
 Analysis  Overview:
 
 1. Generate Directories Framework
@@ -57,7 +56,9 @@ ChIP-like-Seq
 -------------
 _Chromatin Immunoprecipitation followed by Sequencing_ (ChIP-Seq) and similar technologies obtains genomic regions associated to a protein or modification of interest.
 
-Analysis overview:
+[Extended Analysis and code](https://github.com/Edahi/NGSDataAnalysis/tree/master/ChIP-like-Seq)
+
+Analysis  Overview:
 
 1. Generate Directories Framework
 2. check if Paired-End data
@@ -86,7 +87,9 @@ CMS-IP-Seq
 ----------
 _Cytosine-5-MethyleneSulfonate followed by Immunoprecipitation and Sequencing_ is a method that allows the obtention of genomic regions enriched for the 5hydroxymethylcytosine epigenetic modification.
 
-Analysis overview:
+[Extended Analysis and code](https://github.com/Edahi/NGSDataAnalysis/tree/master/CMS-IP-Seq)
+
+Analysis  Overview:
 
 1. Generate Directories Framework
 2. check if Paired-End data
@@ -106,7 +109,9 @@ GRO-Seq
 -------
 _Global Run On followed by Sequencing_ allows the analysis of nacent RNA, that is, genes that are being transcribed at a certain time point.
 
-Analysis overview:
+[Extended Analysis and code](https://github.com/Edahi/NGSDataAnalysis/tree/master/GRO-Seq)
+
+Analysis  Overview:
 
 1. Generate Directories Framework
 - Currently functional for Single-End data
@@ -129,7 +134,9 @@ The difference with [CMS-IP](https://github.com/Edahi/NGSDataAnalysis#cms-ip-seq
 - Reads alphabet is not reduced because there is not bisulfite treatment
 - Alignment to the unmodified reference genome can be done straightforward with e.g. [Bowtie(2)](http://bowtie-bio.sourceforge.net/manual.shtml) or [BWA](http://bio-bwa.sourceforge.net/).
 
-Analysis overview:
+[Extended Analysis and code](https://github.com/Edahi/NGSDataAnalysis/tree/master/HMCP-Seq)
+
+Analysis  Overview:
 
 As described above, this data is then analyzed with the [ChIP-like pipeline](https://github.com/Edahi/NGSDataAnalysis#chip-like-seq) with the addition of Spike-Ins to the ref genome.
 The steps below detail the normalization method particular to this technique:
@@ -154,7 +161,9 @@ RNA-Seq
 -------
 RNA-Seq allows a cuantitative approach for the analysis of transcripts in bulk RNA from cells.
 
-Analysis overview:
+[Extended Analysis and code](https://github.com/Edahi/NGSDataAnalysis/tree/master/RNA-Seq)
+
+Analysis  Overview:
 
 _Pre-Differential Expression Analysis_.
 
@@ -195,7 +204,9 @@ _Whole-Genome Bisulfite followed by Sequencing_ is a marvelous and expensive tec
 Therefore, unless OxBS-Seq or TAB-Seq (none of them discussed here... yet) or another similar technique that allows the base-resolution identification of 5hmC (or 5mC) is used, we have to refer to the WGBS signal as __5mC + 5hmC__.
 
 
-Analysis overview:
+[Extended Analysis and code](https://github.com/Edahi/NGSDataAnalysis/tree/master/WGB-Seq)
+
+Analysis  Overview:
 
 1. Generate Directories Framework
 - Currently functional for Paired-End data only (haven't seen a SE WGBS data yet).
@@ -214,7 +225,9 @@ WG-Seq
 ------
 _Whole-Genome Sequencing_ allows for the analysis of single nucleotide variants, chromosomal rearrangements and much more.
 
-Analysis overview:
+[Extended Analysis and code](https://github.com/Edahi/NGSDataAnalysis/tree/master/WG-Seq)
+
+Analysis  Overview:
 
 1. Generate Directories Framework
 2. Merge lanes & rm barcodes (if any)

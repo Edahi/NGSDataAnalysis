@@ -1,0 +1,349 @@
+#!/bin/bash
+
+# HMCP-Seq w/SpikeIns Standarized pipeline for hg38 Paired End
+# Author: Edahi Gonzalez-Avalos
+# Email:  edahi@lji.org
+# Date:   2019.03.15
+# Versions logs
+# v1.
+#  Mapping
+
+#  Used in:
+#  (1)  /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/HMCPSeq_hg38_PE_Existing_v1 -s TonsilnaiveB-Redy43-repeat-input_S1 -n TonsilnaiveB-Redy43-repeat-input -d /mnt/BioScratch/edahi/3_6_19_Jerry_Pool4 -a $TEMP/test/3_6_19_Jerry_Pool4   -q -r
+#  (2)  /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/HMCPSeq_hg38_PE_Existing_v1 -s TonsilnaiveB-Redy43-repeat_S2       -n TonsilnaiveB-Redy43-repeat       -d /mnt/BioScratch/edahi/3_6_19_Jerry_Pool4 -a $TEMP/test/3_6_19_Jerry_Pool4   -q -r
+
+# >>> How to use the program:
+
+usage()
+{
+    printf "\nusage: /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/HMCPSeq_hg38_PE_Existing_v1 [-s Surname of downloaded data]"
+    printf "\n\t[-n | --name      Name                       def:chip  ]"
+    printf "\n\t[-d | --download  DownloadPath               def:/mnt/beegfs ]"
+    printf "\n\t[-a | --analysis  AnalysisPath               def:/mnt/BioAdHoc/Groups/RaoLab/temp ]"
+    printf "\n\t[-t | --temp      TemporalPath               def:/mnt/BioScratch/edahi ]"
+    printf "\n\t[-q | --queue     set 'rao-exclusive' queue  def:'default' ]"
+    printf "\n\t[-b | --barcode   barcode length --if any    def:0 ]"
+    printf "\n\t[-r | --run       Run created job            def:no   ]"
+    printf "\n\t[-k | --keep      Keep intermediate results  def:no   ]"
+    printf "\n\t[-h | --help      Show this message and exit ]\n\n"
+}
+
+# >>> Check if arguments given:
+if [ "$1" == "" ]; then
+  usage
+  exit 1
+fi
+
+# >>> Declare Variables
+download=/mnt/beegfs
+analysis=/mnt/BioAdHoc/Groups/RaoLab/temp
+TEMP=/mnt/BioScratch/edahi/
+surname=
+name=HMCP
+barcode=0
+raoqueue=0
+keep=0
+run=0
+
+# >>> Assign arguments to variables
+while [ "$1" != "" ]; do
+    case $1 in
+        -s | --PRE )            shift
+                                surname=$1
+                                ;;
+        -n | --name )           shift
+                                name=$1
+                                ;;
+        -d | --download )       shift
+                                download=$1
+                                ;;
+        -a | --analysis )       shift
+                                analysis=$1
+                                ;;
+        -b | --barcode )        shift
+                                barcode=$1
+                                ;;
+        -t | --temp )           shift
+                                temp=$1
+                                ;;
+        -q | --queue  )         raoqueue=1
+                                ;;
+        -k | --keep  )          keep=1
+                                ;;
+        -r | --run    )         run=1
+                                ;;
+        -h | --help )           usage
+                                exit
+                                ;;
+        * )                     usage
+                                exit 1
+    esac
+    shift
+done
+
+# >>> Check if File surname was given:
+if [ "$surname" = "" ]; then
+    printf "\n\tSurname is a required argument. Check --help for further assistance\n\n";
+    exit
+fi
+
+      Jobs=$analysis/Jobs
+  softlink=$analysis/01.Data
+   mapping=$analysis/02.Mapping
+   TagDirs=$analysis/03.TagDirectories
+FragLenEst=$analysis/04.FragmentLengthEstimates
+       ssp=$analysis/05.SSP
+   BigWigs=$analysis/06.BigWigs
+    FASTQC=$analysis/FASTQC
+
+mkdir -p $Jobs
+cat <<EOF> $Jobs/${name}.HMCPSeq.hg38.PE.v1.sh
+#!/bin/bash -x
+#PBS -N ${name}.HMCPSeq.hg38.PE.v1
+#PBS -l walltime=168:00:00
+#PBS -o $Jobs/${name}.HMCPSeq.hg38.PE.v1.out
+#PBS -e $Jobs/${name}.HMCPSeq.hg38.PE.v1.out
+#PBS -j oe
+#PBS -l nodes=1:ppn=4
+#PBS -M edahi@lji.org
+#PBS -l mem=10GB
+#PBS -m ae
+EOF
+if [ "$raoqueue" = "1" ]; then
+ cat <<EOF>> $Jobs/${name}.HMCPSeq.hg38.PE.v1.sh
+#PBS -q rao-exclusive
+EOF
+else
+ cat <<EOF>> $Jobs/${name}.HMCPSeq.hg38.PE.v1.sh
+#PBS -q default
+EOF
+fi
+
+cat <<EOF>> $Jobs/${name}.HMCPSeq.hg38.PE.v1.sh
+
+export PATH=/share/apps/R/3.1.0/bin:/share/apps/UCSC:/share/apps/python/python-3.4.6/bin:/share/apps/python/python-2.7.13/bin:/share/apps/perl/perl-5.18.1-threaded/bin/:/share/apps/gcc/6.3/bin:/mnt/BioApps/pigz/latest/bin:/share/apps/bin:/usr/local/maui/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/opt/stack/bin:/share/apps/java/latest/bin:/share/apps/bowtie/bowtie2-2.1.0:/share/apps/bowtie/bowtie-1.1.2:/usr/local/cuda/bin:/share/apps/dos2unix/latest/bin:/share/apps/bedtools/bin:/share/apps/HOMER/bin
+printf "PATH Used:\n\$PATH\n\n"
+unset PYTHONPATH
+
+#Variables:
+    fastqc=/Bioinformatics/apps/FastQC/FastQC-0.11.2/fastqc
+   MarkDup=/Bioinformatics/apps/picard-tools/picard-tools-1.94/MarkDuplicates.jar
+    Btools=/mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/01.Downloaded/bedtools2/bin/bedtools
+       bwa=/mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/01.Downloaded/bwa/bwa
+   makeTag=/mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/01.Downloaded/HOMER/bin/makeTagDirectory
+    RunSPP=/mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/01.Downloaded/phantompeakqualtools/run_spp.R
+trimgalore=/mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/01.Downloaded/TrimGalore-0.4.3/trim_galore
+     bg2bw=/mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/bedGraph2BigWig.sh
+ ChopChrom=/mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/RemoveLastChromosomeInstance.sh
+ MEDIPScov=/mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/R/MEDIPS/Create_GenomicCoverage_hg38_PE.R
+ GenomeDir=/mnt/BioAdHoc/Groups/RaoLab/Edahi/01.Genomes
+ Blacklist=/mnt/BioAdHoc/Groups/RaoLab/Edahi/01.Genomes/hg38/Blacklist/hg38.blacklist.bed
+   Rscript=/share/apps/R/3.1.0/bin/Rscript
+       sam=/usr/bin/samtools
+      java=/usr/bin/java
+
+# From Script:
+      TEMP=/mnt/BioScratch/edahi/
+  download=$download
+   barcode=$barcode
+   surname=$surname
+      name=$name
+  softlink=$softlink
+   mapping=$mapping
+   TagDirs=$TagDirs
+FragLenEst=$FragLenEst
+       ssp=$ssp
+   BigWigs=$BigWigs
+    FASTQC=$FASTQC
+  FASTQCun=$FASTQCun
+      keep=$keep
+      Jobs=$Jobs
+
+# Generate Directories Framework:
+mkdir -p \$softlink \$mapping/\${name} \$TagDirs \$FragLenEst \$ssp \$BigWigs \$FASTQC 
+
+# >>>>>> Merge files from same lane and Eliminate $barcode barcoded nucleotides:
+if [ "\$barcode" = "0" ]; then
+ zcat \$download/\${surname}_L00*_R1_*fastq.gz  > \$TEMP/\${name}_R1.fastq
+ zcat \$download/\${surname}_L00*_R2_*fastq.gz  > \$TEMP/\${name}_R2.fastq
+else
+  zcat \$download/\${surname}_L00*_R1_*fastq.gz | sed '2~2s/^.\{\$barcode\}//g'  > \$TEMP/\${name}_R1.fastq
+  zcat \$download/\${surname}_L00*_R2_*fastq.gz | sed '2~2s/^.\{\$barcode\}//g'  > \$TEMP/\${name}_R2.fastq
+fi
+
+# >>>>>> Create Softlink for ${name} w/o barcodes
+ln -s \$TEMP/\${name}_R1.fastq \${softlink}/\${name}_R1.fastq
+ln -s \$TEMP/\${name}_R2.fastq \${softlink}/\${name}_R2.fastq
+
+# >>>>>> FASTQC for downloaded files
+\$fastqc \${softlink}/\${name}_R1.fastq --outdir=\$FASTQC &
+\$fastqc \${softlink}/\${name}_R2.fastq --outdir=\$FASTQC &
+
+# >>>>>> BWA aligment  -- (1st)
+cd    \$mapping/\${name}
+\$bwa mem -M -t 8 \$GenomeDir/hg38r_T4_Lambda_HMCPspikes123/bwa/index/genome \${softlink}/\${name}_R1.fastq \${softlink}/\${name}_R2.fastq > \$mapping/\${name}/\${name}.mapped.sam
+\$sam view -Sbh -F 4    \$mapping/\${name}/\${name}.mapped.sam > \$mapping/\${name}/\${name}.mapped.bam
+
+# >>>>>> Obtain unmapped:
+\$sam view -Sbh -f 4    \$mapping/\${name}/\${name}.mapped.sam              > \$mapping/\${name}/\${name}.unmapped.bam
+\$sam sort -n           \$mapping/\${name}/\${name}.unmapped.bam              \$mapping/\${name}/\${name}.unmapped.namesort
+\$Btools bamtofastq -i  \$mapping/\${name}/\${name}.unmapped.namesort.bam -fq \$mapping/\${name}/\${name}.unmapped.R1.fq -fq2 \$mapping/\${name}/\${name}.unmapped.R2.fq
+
+# >>>>>> trim_galore unmapped reads
+\$trimgalore --paired --length 35 --stringency 3 --three_prime_clip_R1 1 --three_prime_clip_R2 1 \$mapping/\${name}/\${name}.unmapped.R1.fq \$mapping/\${name}/\${name}.unmapped.R2.fq -o \$mapping/\${name}/
+
+# >>>>>> BWA aligment  -- (2nd)
+\$bwa mem -M -t 8 \$GenomeDir/hg38r_T4_Lambda_HMCPspikes123/bwa/index/genome \$mapping/\${name}/\${name}.unmapped.R1_val_1.fq \$mapping/\${name}/\${name}.unmapped.R2_val_2.fq > \$mapping/\${name}/\${name}.unmapped.remap.sam
+\$sam view -Sbh -F 4    \$mapping/\${name}/\${name}.unmapped.remap.sam > \$mapping/\${name}/\${name}.unmapped.remap.bam
+# \$sam flagstat \$mapping/\${name}/\${name}.unmapped.remap.bam # <<<<<<
+
+# >>>>>> Merge both mapping results
+\$sam merge -f -h \$mapping/\${name}/\${name}.mapped.sam                \$mapping/\${name}/\${name}.mapped.sorted.merged.bam \$mapping/\${name}/\${name}.mapped.bam \$mapping/\${name}/\${name}.unmapped.remap.bam 
+\$sam sort  -@  4 \$mapping/\${name}/\${name}.mapped.sorted.merged.bam  \$mapping/\${name}/\${name}.mapped.sorted.merged.sort
+
+# >>>>>> Separate HMCP Spike-in BAMs
+# >>> HMCP Spikes
+\$sam index     \$mapping/\${name}/\${name}.mapped.sorted.merged.sort.bam
+\$sam view -b   \$mapping/\${name}/\${name}.mapped.sorted.merged.sort.bam hmCP_Ctl1_2hmC hmCP_Ctl2_2mC hmCP_Ctl3_2C > \$mapping/\${name}/\${name}.HMCPspikes.bam
+\$sam index     \$mapping/\${name}/\${name}.HMCPspikes.bam
+for chrom in hmCP_Ctl1_2hmC hmCP_Ctl2_2mC hmCP_Ctl3_2C; do
+ echo \$chrom
+ \$sam view -bh \$mapping/\${name}/\${name}.HMCPspikes.bam \${chrom} > \$mapping/\${name}/\${name}.HMCPspikes.\${chrom}.bam
+done
+
+# >>>>>> Separate T4 Spike-in BAM
+\$sam view \$mapping/\${name}/\${name}.mapped.sorted.merged.sort.bam -h | grep -v -e hmCP_Ctl -e Lambda -e chr | \$sam view -Sb - > \$mapping/\${name}/\${name}.T4spike.wDuplicates.bam
+
+# >>>>>> Separate hg38 Genome BAM
+\$sam view \$mapping/\${name}/\${name}.mapped.sorted.merged.sort.bam -h | grep -v -e hmCP_Ctl -e Lambda -e T4  | \$sam view -Sb - > \$mapping/\${name}/\${name}.Genome.bam
+
+# >>>>>> Remove Duplicates / Whitelist
+# >>> T4-Spike
+\$java -jar \$MarkDup \
+   INPUT=\$mapping/\${name}/\${name}.T4spike.wDuplicates.bam \
+   OUTPUT=\$mapping/\${name}/\${name}.T4spike.bam \
+   METRICS_FILE=\$mapping/\${name}/\${name}.T4spike.PicardMetrics.txt \
+   REMOVE_DUPLICATES=true \
+   ASSUME_SORTED=true
+# >>> Genome
+\$java -jar \$MarkDup \
+   INPUT=\$mapping/\${name}/\${name}.Genome.bam \
+   OUTPUT=\$mapping/\${name}/\${name}.Genome.rmdup.bam \
+   METRICS_FILE=\$mapping/\${name}/\${name}.Genome.PicardMetrics.txt \
+   REMOVE_DUPLICATES=true \
+   ASSUME_SORTED=true
+
+# >>>>>> Blacklist removal
+\$Btools intersect -a \$mapping/\${name}/\${name}.Genome.rmdup.bam -b \$Blacklist -v > \$mapping/\${name}/\${name}.whitelist.RandSeq.bam
+
+# >>>>>> Random Genes Removal:
+\$sam view -h \$mapping/\${name}/\${name}.whitelist.RandSeq.bam | grep -v -e _random -e chrUn_ | \$sam view -Sb - > \$mapping/\${name}/\${name}.whitelist.bam
+
+# >>>>>> Indexing
+\$sam index \$mapping/\${name}/\${name}.whitelist.bam
+\$sam index \$mapping/\${name}/\${name}.T4spike.bam
+\$sam index \$mapping/\${name}/\${name}.HMCPspikes.hmCP_Ctl1_2hmC.bam
+\$sam index \$mapping/\${name}/\${name}.HMCPspikes.hmCP_Ctl2_2mC.bam
+\$sam index \$mapping/\${name}/\${name}.HMCPspikes.hmCP_Ctl3_2C.bam
+
+# >>>>>> FragmentSize / PhantomPeaks / MappingStats
+# >>> tagAlign
+\$sam view -F 0x0204 -o - \$mapping/\${name}/\${name}.whitelist.bam | 
+    awk 'BEGIN{OFS="\t"}{if (and(\$2,16) > 0) {print \$3,(\$4-1),(\$4-1+length(\$10)),"N","1000","-"} else {print \$3,(\$4-1),(\$4-1+length(\$10)),"N","1000","+"} }' | 
+    gzip -c > \$FragLenEst/\${name}.tagAlign.gz 
+# >>> ssp [PhantomPeaks]
+\$Rscript \$RunSPP \
+    -rf -s=-100:5:600 \
+    -c=\$FragLenEst/\${name}.tagAlign.gz  -savp \
+    -out=\$ssp/\${name}.FragLenEst.tab 
+# >>> FragmentLengthEstimate
+cut -f3 \$ssp/\${name}.FragLenEst.tab | awk 'BEGIN{FS=","}{if(\$1 < 0){print \$2} else {print \$1} }'  > \$FragLenEst/\${name}.FragLenEst.cat
+
+# >>>>>>  TagDirectory
+mkdir -p \$TagDirs/\${name}         \$TagDirs/\${name}_T4spike
+\$makeTag \$TagDirs/\${name}         \$mapping/\${name}/\${name}.whitelist.bam     -keepAll -fragLength \`cat \$FragLenEst/\${name}.FragLenEst.cat\` -genome \$GenomeDir/hg38/hg38.fa  &> \$TagDirs/\${name}/MakeTagStats.txt
+\$makeTag \$TagDirs/\${name}_T4spike \$mapping/\${name}/\${name}.T4spike.bam -keepAll -fragLength \`cat \$FragLenEst/\${name}.FragLenEst.cat\` -genome \$GenomeDir/T4/T4.fa      &> \$TagDirs/\${name}_T4spike/MakeTagStats.txt
+
+# >>>>>> Create BigWigs:
+\$MEDIPScov \$mapping/\${name}/\${name}.whitelist.bam  \$BigWigs/\${name}.Extended 50 COUNTS
+sort -k1,1 -k2,2n \$BigWigs/\${name}.Extended.counts.bg > \$BigWigs/\${name}.Extended.sorted.bg
+\$ChopChrom \$BigWigs/\${name}.Extended.sorted.bg \$BigWigs/\${name}.bg
+\$bg2bw \$BigWigs/\${name}.bg \$BigWigs/\${name}.bw hg38
+
+
+# >>>>>> Summary Statistics (SS) -- Done!
+# >>> SS  (0) Name 
+echo \${name}         > \$mapping/\${name}/SummaryStats00.txt
+# >>> SS  (1) Total reads
+\$sam view -S  -c -F256 \$mapping/\${name}/\${name}.mapped.sam                       > \$mapping/\${name}/SummaryStats01.txt
+
+# >>> SS  (2) -- First Mapped Reads 
+\$sam view     -c -F256 \$mapping/\${name}/\${name}.mapped.bam                       > \$mapping/\${name}/SummaryStats02.txt
+# >>> SS  (3) -- Second Mapped Reads 
+\$sam view     -c -F256 \$mapping/\${name}/\${name}.unmapped.remap.bam               > \$mapping/\${name}/SummaryStats03.txt
+# >>> SS  (4) -- Total Merged Mapped Reads
+\$sam view     -c -F256 \$mapping/\${name}/\${name}.mapped.sorted.merged.bam         > \$mapping/\${name}/SummaryStats04.txt
+
+# >>> SS  (5) -- Total hg38 Mapped Reads
+\$sam view     -c -F256 \$mapping/\${name}/\${name}.Genome.bam                       > \$mapping/\${name}/SummaryStats05.txt
+# >>> SS  (6) -- Deduplicated hg38 mapped reads
+\$sam view     -c -F256 \$mapping/\${name}/\${name}.Genome.rmdup.bam                 > \$mapping/\${name}/SummaryStats06.txt
+# >>> SS  (7) -- Whilelisted hg38 mapped reads
+\$sam view     -c -F256 \$mapping/\${name}/\${name}.whitelist.bam                    > \$mapping/\${name}/SummaryStats07.txt
+
+# >>> SS  (8) -- Total T4 Mapped Reads
+\$sam view     -c -F256 \$mapping/\${name}/\${name}.T4spike.wDuplicates.bam          > \$mapping/\${name}/SummaryStats08.txt
+# >>> SS  (9) -- Deduplicated T4 mapped reads
+\$sam view     -c -F256 \$mapping/\${name}/\${name}.T4spike.bam                      > \$mapping/\${name}/SummaryStats09.txt
+
+# >>> SS (10) -- Total HMCP CTL1 - 2hmC Mapped Reads
+\$sam view     -c -F256 \$mapping/\${name}/\${name}.HMCPspikes.hmCP_Ctl1_2hmC.bam    > \$mapping/\${name}/SummaryStats10.txt
+# >>> SS (11) -- Total HMCP CTL2 - 2mC Mapped Reads
+\$sam view     -c -F256 \$mapping/\${name}/\${name}.HMCPspikes.hmCP_Ctl2_2mC.bam     > \$mapping/\${name}/SummaryStats11.txt
+# >>> SS (12) -- Total HMCP CTL3 - 2C Mapped Reads
+\$sam view     -c -F256 \$mapping/\${name}/\${name}.HMCPspikes.hmCP_Ctl3_2C.bam      > \$mapping/\${name}/SummaryStats12.txt
+
+# >>> Gather all summaries:
+echo 'SampleName,RawReads,Mapped_1st,Mapped_2nd,TotalMapped,hg38_All,hg38_NoDuplicates,hg38_Whitelist_NoRandom,T4_All,T4_NoDuplicates,hmCP_Control1_2hmC,hmCP_Control2_2mC,hmCP_Control3_2C' >  \$mapping/\${name}/Colnames.MappingStats.csv
+paste -d, \$mapping/\${name}/SummaryStats*.txt  >  \$mapping/\${name}/MappingStats.csv
+
+
+if [ "\$keep" = "0" ]; then
+ # >>>>>> Remove Intermediate Mapping Files:
+ rm \$mapping/\${name}/Summary*  
+
+ rm \$mapping/\${name}/\${name}.mapped.bam 
+ rm \$mapping/\${name}/\${name}.mapped.sam 
+ rm \$mapping/\${name}/\${name}.mapped.sorted.merged.bam 
+ rm \$mapping/\${name}/\${name}.mapped.sorted.merged.sort.bam 
+ rm \$mapping/\${name}/\${name}.mapped.sorted.merged.sort.bam.bai 
+ rm \$mapping/\${name}/\${name}.unmapped.R1.fq 
+ rm \$mapping/\${name}/\${name}.unmapped.R2.fq 
+ rm \$mapping/\${name}/\${name}.unmapped.bam 
+ rm \$mapping/\${name}/\${name}.unmapped.namesort.bam 
+ rm \$mapping/\${name}/\${name}.unmapped.remap.bam 
+ rm \$mapping/\${name}/\${name}.unmapped.remap.sam
+ rm \$mapping/\${name}/\${name}.Genome.bam
+ rm \$mapping/\${name}/\${name}.Genome.rmdup.bam
+ rm \$mapping/\${name}/\${name}.T4spike.wDuplicates.bam
+ rm \$mapping/\${name}/\${name}.whitelist.RandSeq.bam
+ rm \$mapping/\${name}/gmon.out
+ rm \$mapping/\${name}/\${name}.unmapped.R1_val_1.fq
+ rm \$mapping/\${name}/\${name}.unmapped.R2_val_2.fq
+
+ # >>>>>> Remove Intermediate files from PhantomPeaks
+ rm \$FragLenEst/\${name}.tagAlign.gz 
+
+ # >>> Remove intermediate trackers
+ rm \$BigWigs/\${name}.Extended.counts.bg
+ rm \$BigWigs/\${name}.Extended.sorted.bg
+ 
+fi
+
+EOF
+  
+# >>> If selected, Run job
+if [ "$run" = "1" ]; then
+#  echo "Running Job"
+ qsub $Jobs/${name}.HMCPSeq.hg38.PE.v1.sh
+fi

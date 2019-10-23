@@ -1,0 +1,458 @@
+#!/bin/bash
+
+# ATAC-seq Standarized pipeline mm10: Version -- 04
+# Author: Edahi Gonzalez-Avalos
+# Email:  edahi@lji.org
+# Date:   2019.02.19
+# Versions logs
+# v5.
+#  Added Blast analysis using no mappable reads
+#  Change the way I calculated the raw total reads
+#  Change remapping parameters to be more broad
+#  Added the calculation of Usable Reads
+#  Modified the way I gather the summary results
+#  Moved the Peak calling section to the end
+#  Changed the way I generate the bigWigs files (Now I used my custom script)
+#  Modified How I call peaks with MACS2 to concentrate on the sumimts
+#  Expand the summits to 200bp from the center
+# v4.
+#  Corrected minor filename conveniences (Add HOMER prefix to HOMER peaks)
+#  Corrected missing backslash to make final file consistent with template format
+#  Added MACS2 program and peaks
+#  Renamed folder "06.HOMER_Peaks" by "06.Peaks" given MACS2 peaks introduction.
+# v3.
+#  Compressed downloaded FASTQ file
+#  Reformat the help message
+#  Added summary statistics to track mapping results
+#  Changed the order between removing duplicates and filtering blacklisted regions
+#  Updated the filename to include the current version of the script
+#  Added option to remove temporal files, such as intermediate mapping results
+#  Renamed TagAlign to Fragment Length Estimate
+#  Added code necessary to generate BigWigs
+#  Added option to remove intermediate files at the end
+#  Add Genome Browser tracks || Experimental with Tn5_9bp
+#  Added code to check if SRR was given
+# 
+
+#  Used in:
+#  (1) /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/ATACseq_mm10_SRR_v5 -c SRR7419623 -r -d /mnt/NGSExternal/PMID_31028100_Jerry_2019_ScienceImmunology/ATAC-Seq -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/09.TimeCourse5hmC/Bcells/ATACSeq_PMID_31028100_Jerry_2019_ScienceImmunology/ -n DKO_00h_rep1
+#  (2) /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/ATACseq_mm10_SRR_v5 -c SRR7419624 -r -d /mnt/NGSExternal/PMID_31028100_Jerry_2019_ScienceImmunology/ATAC-Seq -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/09.TimeCourse5hmC/Bcells/ATACSeq_PMID_31028100_Jerry_2019_ScienceImmunology/ -n DKO_00h_rep2
+#  (3) /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/ATACseq_mm10_SRR_v5 -c SRR7419625 -r -d /mnt/NGSExternal/PMID_31028100_Jerry_2019_ScienceImmunology/ATAC-Seq -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/09.TimeCourse5hmC/Bcells/ATACSeq_PMID_31028100_Jerry_2019_ScienceImmunology/ -n DKO_24h_rep1
+#  (4) /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/ATACseq_mm10_SRR_v5 -c SRR7419626 -r -d /mnt/NGSExternal/PMID_31028100_Jerry_2019_ScienceImmunology/ATAC-Seq -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/09.TimeCourse5hmC/Bcells/ATACSeq_PMID_31028100_Jerry_2019_ScienceImmunology/ -n DKO_24h_rep2
+#  (5) /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/ATACseq_mm10_SRR_v5 -c SRR7419627 -r -d /mnt/NGSExternal/PMID_31028100_Jerry_2019_ScienceImmunology/ATAC-Seq -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/09.TimeCourse5hmC/Bcells/ATACSeq_PMID_31028100_Jerry_2019_ScienceImmunology/ -n DKO_48h_rep1
+#  (6) /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/ATACseq_mm10_SRR_v5 -c SRR7419628 -r -d /mnt/NGSExternal/PMID_31028100_Jerry_2019_ScienceImmunology/ATAC-Seq -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/09.TimeCourse5hmC/Bcells/ATACSeq_PMID_31028100_Jerry_2019_ScienceImmunology/ -n DKO_48h_rep2
+#  (7) /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/ATACseq_mm10_SRR_v5 -c SRR7419629 -r -d /mnt/NGSExternal/PMID_31028100_Jerry_2019_ScienceImmunology/ATAC-Seq -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/09.TimeCourse5hmC/Bcells/ATACSeq_PMID_31028100_Jerry_2019_ScienceImmunology/ -n DKO_72h_rep1
+#  (8) /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/ATACseq_mm10_SRR_v5 -c SRR7419630 -r -d /mnt/NGSExternal/PMID_31028100_Jerry_2019_ScienceImmunology/ATAC-Seq -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/09.TimeCourse5hmC/Bcells/ATACSeq_PMID_31028100_Jerry_2019_ScienceImmunology/ -n DKO_72h_rep2
+#  (9) /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/ATACseq_mm10_SRR_v5 -c SRR7419615 -r -d /mnt/NGSExternal/PMID_31028100_Jerry_2019_ScienceImmunology/ATAC-Seq -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/09.TimeCourse5hmC/Bcells/ATACSeq_PMID_31028100_Jerry_2019_ScienceImmunology/ -n WT_00h_rep1
+# (10) /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/ATACseq_mm10_SRR_v5 -c SRR7419616 -r -d /mnt/NGSExternal/PMID_31028100_Jerry_2019_ScienceImmunology/ATAC-Seq -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/09.TimeCourse5hmC/Bcells/ATACSeq_PMID_31028100_Jerry_2019_ScienceImmunology/ -n WT_00h_rep2
+# (11) /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/ATACseq_mm10_SRR_v5 -c SRR7419617 -r -d /mnt/NGSExternal/PMID_31028100_Jerry_2019_ScienceImmunology/ATAC-Seq -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/09.TimeCourse5hmC/Bcells/ATACSeq_PMID_31028100_Jerry_2019_ScienceImmunology/ -n WT_24h_rep1
+# (12) /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/ATACseq_mm10_SRR_v5 -c SRR7419618 -r -d /mnt/NGSExternal/PMID_31028100_Jerry_2019_ScienceImmunology/ATAC-Seq -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/09.TimeCourse5hmC/Bcells/ATACSeq_PMID_31028100_Jerry_2019_ScienceImmunology/ -n WT_24h_rep2
+# (13) /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/ATACseq_mm10_SRR_v5 -c SRR7419619 -r -d /mnt/NGSExternal/PMID_31028100_Jerry_2019_ScienceImmunology/ATAC-Seq -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/09.TimeCourse5hmC/Bcells/ATACSeq_PMID_31028100_Jerry_2019_ScienceImmunology/ -n WT_48h_rep1
+# (14) /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/ATACseq_mm10_SRR_v5 -c SRR7419620 -r -d /mnt/NGSExternal/PMID_31028100_Jerry_2019_ScienceImmunology/ATAC-Seq -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/09.TimeCourse5hmC/Bcells/ATACSeq_PMID_31028100_Jerry_2019_ScienceImmunology/ -n WT_48h_rep2
+# (15) /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/ATACseq_mm10_SRR_v5 -c SRR7419621 -r -d /mnt/NGSExternal/PMID_31028100_Jerry_2019_ScienceImmunology/ATAC-Seq -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/09.TimeCourse5hmC/Bcells/ATACSeq_PMID_31028100_Jerry_2019_ScienceImmunology/ -n WT_72h_rep1
+# (16) /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/ATACseq_mm10_SRR_v5 -c SRR7419622 -r -d /mnt/NGSExternal/PMID_31028100_Jerry_2019_ScienceImmunology/ATAC-Seq -a /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/09.TimeCourse5hmC/Bcells/ATACSeq_PMID_31028100_Jerry_2019_ScienceImmunology/ -n WT_72h_rep2
+
+# >>> How to use the program:
+#    ATACseq_mm10_SRR_v5 [-c SRR code] [-n Name def:ATAC] [-d DownloadDir def:/BioScratch/edahi] [-a AnalysisDir def:/BioScratch/edahi] [-r Run created job def:no] [-q rao-exclusive queue def:no] [-h help]"
+
+usage()
+{
+    printf "\nusage: /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/ATACseq_mm10_SRR_v5 [-c SRR code]"
+    printf "\n\t[-n | --name      Name                       def:ATAC  ]"
+    printf "\n\t[-d | --download  DownloadPath               def:/mnt/beegfs ]"
+    printf "\n\t[-a | --analysis  AnalysisPath               def:/mnt/BioAdHoc/Groups/RaoLab/temp ]"
+    printf "\n\t[-q | --queue     set 'rao-exclusive' queue  def:'default' ]"
+    printf "\n\t[-r | --run       Run created job            def:no   ]"
+    printf "\n\t[-k | --keep      Keep intermediate results  def:no   ]"
+    printf "\n\t[-h | --help      Show this message and exit ]\n\n"
+}
+
+
+# >>> Check if arguments given:
+if [ "$1" == "" ]; then
+  usage
+  exit 1
+fi
+
+# >>> Declare Variables
+download=/mnt/beegfs
+analysis=/mnt/BioAdHoc/Groups/RaoLab/temp
+srr=
+name=ATAC
+run=0
+raoqueue=0
+keep=0
+
+# >>> Assign arguments to variables
+while [ "$1" != "" ]; do
+    case $1 in
+        -c | --SRR )            shift
+                                srr=$1
+                                ;;
+        -n | --name )           shift
+                                name=$1
+                                ;;
+        -d | --download )       shift
+                                download=$1
+                                ;;
+        -a | --analysis )       shift
+                                analysis=$1
+                                ;;
+        -q | --queue  )         raoqueue=1
+                                ;;
+        -k | --keep  )          keep=1
+                                ;;
+        -r | --run    )         run=1
+                                ;;
+        -h | --help )           usage
+                                exit
+                                ;;
+        * )                     usage
+                                exit 1
+    esac
+    shift
+done
+
+# >>> Check if SRR was given:
+if [ "$srr" = "" ]; then
+    printf "\n\tSRR CODE is a required argument. Check --help for further assistance\n\n";
+    exit
+fi
+
+      Jobs=$analysis/Jobs
+  softlink=$analysis/01.Data
+   mapping=$analysis/02.Mapping
+   TagDirs=$analysis/03.TagDirectories
+FragLenEst=$analysis/04.FragmentLengthEstimates
+       ssp=$analysis/05.SSP
+   peakDir=$analysis/06.Peaks
+   BigWigs=$analysis/07.BigWigs
+    BlastR=$analysis/08.BlastResults
+    FASTQC=$analysis/FASTQC
+  FASTQCun=$analysis/FASTQC_UnMap
+
+mkdir -p $Jobs
+
+cat <<EOF> $Jobs/${name}.PublicATACseq.mm10.v5.sh
+#!/bin/bash -ex
+#PBS -N ${name}.ATACseq.mm10.v5
+#PBS -l walltime=168:00:00
+#PBS -o $Jobs/${name}.ATACseq.mm10.v5.out
+#PBS -e $Jobs/${name}.ATACseq.mm10.v5.out
+#PBS -j oe
+#PBS -l nodes=1:ppn=4
+#PBS -M edahi@lji.org
+#PBS -l mem=10GB
+#PBS -m ae
+EOF
+if [ "$raoqueue" = "1" ]; then
+ cat <<EOF>> $Jobs/${name}.PublicATACseq.mm10.v5.sh
+#PBS -q rao-exclusive
+EOF
+else
+ cat <<EOF>> $Jobs/${name}.PublicATACseq.mm10.v5.sh
+#PBS -q default
+EOF
+fi
+
+cat <<EOF>> $Jobs/${name}.PublicATACseq.mm10.v5.sh
+
+export PATH=/share/apps/R/3.1.0/bin:/share/apps/python/python-3.4.6/bin:/share/apps/python/python-2.7.13/bin:/share/apps/perl/perl-5.18.1-threaded/bin/:/share/apps/gcc/6.3/bin:/mnt/BioApps/pigz/latest/bin:/share/apps/bin:/usr/local/maui/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/opt/stack/bin:/share/apps/java/latest/bin:/share/apps/bowtie/bowtie2-2.1.0:/share/apps/bowtie/bowtie-1.1.2:/usr/local/cuda/bin:/share/apps/dos2unix/latest/bin:/share/apps/bedtools/bin:/share/apps/HOMER/bin
+printf "PATH Used:\n\$PATH\n\n"
+unset PYTHONPATH
+
+#Variables:
+    bowtie=/Bioinformatics/apps/bowtie/bowtie-1.0.0/bowtie
+    fastqc=/Bioinformatics/apps/FastQC/FastQC-0.11.2/fastqc
+   MarkDup=/Bioinformatics/apps/picard-tools/picard-tools-1.94/MarkDuplicates.jar
+    BamCov=/home/edahi/.local/bin/bamCoverage
+       Ann=/home/edahi/download/code/HOMER/bin/annotatePeaks.pl
+  getPeaks=/home/edahi/download/code/HOMER/bin/findPeaks
+   makeTag=/home/edahi/download/code/HOMER/bin/makeTagDirectory
+ fastqdump=/home/edahi/download/code/sra/sratoolkit.2.8.2-1-ubuntu64/bin/fastq-dump
+trimgalore=/home/edahi/download/code/TrimGalore/0.3.8/trim_galore
+   mm10bwa=/mnt/BioAdHoc/Groups/RaoLab/Bioinformatics/apps/Mus_musculus/UCSC/mm10/BWAIndex/genome.fa
+mm10genome=/mnt/BioAdHoc/Groups/RaoLab/Bioinformatics/apps/Mus_musculus/UCSC/mm10/BowtieIndex/genome
+genomesize=/mnt/BioAdHoc/Groups/RaoLab/Bioinformatics/apps/Mus_musculus/UCSC/mm10/BowtieIndex/genome.fa.sizes
+    Btools=/mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/01.Downloaded/bedtools2/bin/bedtools
+    makeBG=/mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/01.Downloaded/HOMER/bin/makeUCSCfile
+    Blastn=/mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/01.Downloaded/ncbi-blast-2.7.1+/bin/blastn
+    RunSPP=/mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/01.Downloaded/phantompeakqualtools/run_spp.R
+   velveth=/mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/01.Downloaded/velvet_1.2.10/velveth
+   velvetg=/mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/01.Downloaded/velvet_1.2.10/velvetg
+     bg2bw=/mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/bedGraph2BigWig.sh
+Fa2OneLine=/mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/Fa2OneLine.sh
+   BLASTDB=/mnt/BioAdHoc/Groups/RaoLab/Edahi/01.Genomes/Blast
+    BLmm10=/mnt/BioAdHoc/Groups/RaoLab/Edahi/01.Genomes/Mus_musculus/UCSC/mm10/Sequence/Blacklist/mm10.blacklist.bed
+      py27=/share/apps/python/python-2.7.13/bin/python
+     MACS2=/share/apps/python/python-2.7.6/bin/macs2
+   Rscript=/share/apps/R/3.1.0/bin/Rscript
+      calc=/share/apps/UCSC/calc
+       sam=/usr/bin/samtools
+
+
+# From Script:
+  download=$download
+       srr=$srr
+      name=$name
+  softlink=$softlink
+   mapping=$mapping
+   TagDirs=$TagDirs
+FragLenEst=$FragLenEst
+       ssp=$ssp
+   peakDir=$peakDir
+   BigWigs=$BigWigs
+    BlastR=$BlastR
+    FASTQC=$FASTQC
+  FASTQCun=$FASTQCun
+      keep=$keep
+      Jobs=$Jobs
+
+# Generate Directories Framework:
+mkdir -p \$softlink \$mapping/\${name} \$TagDirs \$FragLenEst \$ssp \$peakDir \$FASTQC \$FASTQCun \$BigWigs \$BlastR
+
+# >>>>>> Check if files existed before (THEN DELETOS)
+if [ -f \$download/\${srr}_1.fastq.gz ];     then printf "Removing Pre-existing \$download/\${srr}_[12].fastq.gz"     ; rm \$download/\${srr}_*.fastq.gz    ; fi
+if [ -L \${softlink}/\${name}_R1.fastq.gz ]; then printf "Removing Pre-existing \${softlink}/\${name}_R[12].fastq.gz" ; rm \${softlink}/\${name}_R*.fastq.gz; fi
+
+# >>>>>> Download Files for ${name} -- $srr
+\$fastqdump --dumpbase --skip-technical --clip --outdir \$download --gzip -A \$srr --split-3  --split-files
+
+# >>>>>> Create Softlinks for ${name}
+ln -s \$download/${srr}_1.fastq.gz \${softlink}/${name}_R1.fastq.gz
+ln -s \$download/${srr}_2.fastq.gz \${softlink}/${name}_R2.fastq.gz
+
+# >>>>>> FASTQC for downloaded files
+\$fastqc \${softlink}/\${name}_R1.fastq.gz \${softlink}/\${name}_R2.fastq.gz --outdir=\$FASTQC &
+
+# >>>>>> Mapping (1)
+cd       \$mapping/\${name}
+printf "Statistics for bowtie mapping of untrimmed reads \n" > \$mapping/\$name/BowtieStats.txt
+nohup \$bowtie -p 4 -m 1 --best --strata -X 2000 \\
+  -S --fr --chunkmbs 1024 \$mm10genome \\
+  -1  <(zcat \${softlink}/\${name}_R1.fastq.gz) \\
+  -2  <(zcat \${softlink}/\${name}_R2.fastq.gz) \\
+  \$mapping/\$name/\${name}_mm10.sam \\
+  --un \$mapping/\$name/\${name}_unmapped.fastq &>> \$mapping/\$name/BowtieStats.txt
+
+# >>>>>> Summary Statistics (0)(1) -- Name & Total reads
+echo \${name} > \$mapping/\${name}/SummaryStats00.txt
+Treads=\$(echo \$(grep processed \$mapping/\$name/BowtieStats.txt | cut -f2 -d: | tr -d ' ' | head -n1 )*2|bc) 
+echo \$Treads  > \$mapping/\${name}/SummaryStats01.txt
+
+# >>>>>> trim_galore unmapped reads
+\$trimgalore --paired --nextera --length 37 \\
+  --stringency 3 --three_prime_clip_R1 1 --three_prime_clip_R2 1 \\
+  \$mapping/\$name/\${name}_unmapped_1.fastq \$mapping/\$name/\${name}_unmapped_2.fastq -o \$mapping/\$name
+
+# >>>>>> FASTQC for Unmapped reads
+\$fastqc \$mapping/\$name/\${name}_unmapped_1.fastq    \$mapping/\$name/\${name}_unmapped_2.fastq    --outdir=\$FASTQCun &
+
+# >>>>>> Remap filtered-unmapped reads
+printf "Statistics for bowtie mapping of trim_galore unmapped reads \n" >> \$mapping/\$name/BowtieStats.txt
+nohup \$bowtie -p 4 -m 1 --best --strata -X 2500 -v 3 -e 100 --tryhard \\
+  -S --fr --chunkmbs 1024 \$mm10genome \\
+  -1 \$mapping/\$name/\${name}_unmapped_1_val_1.fq \\
+  -2 \$mapping/\$name/\${name}_unmapped_2_val_2.fq \\
+  \$mapping/\$name/\${name}_remapTrimUnmapped_mm10.sam \\
+  --un \$mapping/\$name/\${name}_unmapped2.fastq &>> \$mapping/\$name/BowtieStats.txt
+
+# >>>>>> FASTQC for Trim_Galore filtered reads
+\$fastqc \$mapping/\$name/\${name}_unmapped_1_val_1.fq \$mapping/\$name/\${name}_unmapped_2_val_2.fq --outdir=\$FASTQCun &
+
+# >>>>>> De-novo assembly from reads unmapped ont he second run: Explore what are the unmapped reads:
+\$velveth \$mapping/\$name/Velvet 27 -fastq -shortPaired -separate \$mapping/\$name/\${name}_unmapped2_1.fastq \$mapping/\$name/\${name}_unmapped2_2.fastq -create_binary
+nohup \$velvetg \$mapping/\$name/Velvet -cov_cutoff 17 -ins_length 300 -ins_length_sd 3 -max_branch_length 300  &>> \$mapping/\$name/Velvet/Velvetg.v1.txt
+
+# >>>>>> Retrieve top three longest assemblies:
+NODES=(\`tail -n+2 \$mapping/\$name/Velvet/stats.txt | grep -v Inf| cut -f1-2 -d\. |  awk -v OFS="\t" '\$3=\$2*\$6' | sort -k3,3n | tail -n3 | cut -f1-2 | awk '{print "NODE_"\$1"_length_"\$2"_"}'\`)
+for i in \${!NODES[@]}; do 
+ j=\`echo \${i}+1|bc\`
+ grep \${NODES[\$i]} \$mapping/\$name/Velvet/contigs.fa -A600 | awk 'BEGIN{a=0}{if(\$_ ~ /^>/){a=a+1; if(a==2){exit}} print \$_ }' > \${BlastR}/\${name}_Biggest_Contig_Length-Cov_Ratio_0\${j}.tm
+done
+
+# >>>>>> Format top three longest assemblies to OneLiners:
+\$Fa2OneLine \${BlastR}/\${name}_Biggest_Contig_Length-Cov_Ratio_01.tm \${BlastR}/\${name}_Biggest_Contig_Length-Cov_Ratio_01.fa
+\$Fa2OneLine \${BlastR}/\${name}_Biggest_Contig_Length-Cov_Ratio_02.tm \${BlastR}/\${name}_Biggest_Contig_Length-Cov_Ratio_02.fa
+\$Fa2OneLine \${BlastR}/\${name}_Biggest_Contig_Length-Cov_Ratio_03.tm \${BlastR}/\${name}_Biggest_Contig_Length-Cov_Ratio_03.fa
+rm \${BlastR}/\${name}_Biggest_Contig_Length-Cov_Ratio_0[123].tm 
+
+# >>>>>> Run Blast on each of the three longest contigs to my local databases:
+\$Blastn -num_descriptions 10 -num_alignments 10  -html -query \${BlastR}/\${name}_Biggest_Contig_Length-Cov_Ratio_01.fa -db \${BLASTDB}/DownloadStuff/NT_Blasted/nt -out \${BlastR}/\${name}_Biggest_Contig_Length-Cov_Ratio_01.html 
+\$Blastn -num_descriptions 10 -num_alignments 10  -html -query \${BlastR}/\${name}_Biggest_Contig_Length-Cov_Ratio_02.fa -db \${BLASTDB}/DownloadStuff/NT_Blasted/nt -out \${BlastR}/\${name}_Biggest_Contig_Length-Cov_Ratio_02.html 
+\$Blastn -num_descriptions 10 -num_alignments 10  -html -query \${BlastR}/\${name}_Biggest_Contig_Length-Cov_Ratio_03.fa -db \${BLASTDB}/DownloadStuff/NT_Blasted/nt -out \${BlastR}/\${name}_Biggest_Contig_Length-Cov_Ratio_03.html 
+
+# In this case the warning "[bam_header_read] EOF marker is absent. The input is probably truncated."
+# Should be ignored. Using samtools view on pipelines gives uncompressed bam, and these do not have the EOF marker
+# >>>>>> Generating 1st step bam
+\$sam view -bS \$mapping/\$name/\${name}_mm10.sam | \\
+  \$sam view -h -F 4 -b - | \\
+  \$sam sort - \$mapping/\$name/\${name}_mm10_onlymapped_sorted
+
+# >>>>>> Generating 2nd step bam (remapped trimgalore)
+\$sam view -bS \$mapping/\$name/\${name}_remapTrimUnmapped_mm10.sam | \\
+  \$sam view -h -F 4 -b - | \\
+  \$sam sort - \$mapping/\$name/\${name}_remapTrimUnmapped_mm10_onlymapped_sorted
+
+# >>>>>> Merge both mapping results
+\$sam merge \\
+  \$mapping/\${name}/\${name}.mapped.sorted.merged.bam \\
+  \$mapping/\$name/\${name}_mm10_onlymapped_sorted.bam \\
+  \$mapping/\$name/\${name}_remapTrimUnmapped_mm10_onlymapped_sorted.bam
+
+# >>>>>> Summary Statistics (2) -- First Mapped Reads 
+\$sam view -c \$mapping/\$name/\${name}_mm10_onlymapped_sorted.bam   > \$mapping/\${name}/SummaryStats02.txt
+
+# >>>>>> Summary Statistics (3) -- Second Mapped Reads 
+\$sam view -c \$mapping/\$name/\${name}_remapTrimUnmapped_mm10_onlymapped_sorted.bam   > \$mapping/\${name}/SummaryStats03.txt
+
+# >>>>>> Summary Statistics (4) -- Total Merged Mapped Reads
+\$sam view -c \$mapping/\${name}/\${name}.mapped.sorted.merged.bam > \$mapping/\${name}/SummaryStats04.txt
+
+# >>>>>> FragLenEst (Raw):
+  \$sam view -F 0x0204 -o - \$mapping/\${name}/\${name}.mapped.sorted.merged.bam | 
+    awk 'BEGIN{OFS="\t"}{if (and(\$2,16) > 0) {print \$3,(\$4-1),(\$4-1+length(\$10)),"N","1000","-"} else {print \$3,(\$4-1),(\$4-1+length(\$10)),"N","1000","+"} }' | 
+    gzip -c > \$FragLenEst/\${name}.Raw.tagAlign.gz 
+
+# >>>>>> Run ssp [PhantomPeaks] (Raw)
+\$Rscript \$RunSPP \\
+    -s=-100:5:600 \\
+    -c=\$FragLenEst/\${name}.Raw.tagAlign.gz -savp \\
+    -out=\$ssp/\${name}.Raw.FragLenEst.tab 
+
+# >>>>>> fragmentLengthEstimate (Raw)
+cat \$ssp/\${name}.Raw.FragLenEst.tab |awk '{print \$3}'|cut -d ',' -f 1 > \$FragLenEst/\${name}.Raw.FragLenEst.cat
+
+# >>>>>> Remove chrM
+\$sam view -h \$mapping/\${name}/\${name}.mapped.sorted.merged.bam | \\
+  perl -lane 'print \$_ if \$F[2] ne "chrM"' | \\
+  \$sam view -bS - > \$mapping/\${name}/\${name}.mapped.sorted.merged.nochrM.bam
+
+# >>>>>> Summary Statistics (5) -- Mapped reads w/o chrM
+\$sam view -c \$mapping/\${name}/\${name}.mapped.sorted.merged.nochrM.bam  > \$mapping/\${name}/SummaryStats05.txt
+
+# >>>>>> Remove Duplicates:
+java -jar \$MarkDup \
+   INPUT=\$mapping/\${name}/\${name}.mapped.sorted.merged.nochrM.bam \\
+   OUTPUT=\$mapping/\${name}/\${name}.mapped.sorted.merged.nochrM.rmdup.bam \\
+   METRICS_FILE=\$mapping/\${name}/\${name}_PicardMetrics.txt \\
+   REMOVE_DUPLICATES=true \\
+   ASSUME_SORTED=true
+
+# >>>>>> Summary Statistics (6) -- Deduplicated mapped reads w/o chrM
+\$sam view -c \$mapping/\${name}/\${name}.mapped.sorted.merged.nochrM.rmdup.bam > \$mapping/\${name}/SummaryStats06.txt
+
+# >>>>>> Whitelist:
+\$Btools intersect -a \$mapping/\${name}/\${name}.mapped.sorted.merged.nochrM.rmdup.bam -b \$BLmm10 -v > \$mapping/\${name}/\${name}.whitelist.bam
+
+# >>>>>> Summary Statistics (7) -- Raw clean mapping results
+Ureads=\$(\$sam view -c \$mapping/\${name}/\${name}.whitelist.bam)
+echo \$Ureads > \$mapping/\${name}/SummaryStats07.txt
+
+# >>>>>> FragLenEst (Filtered):
+  \$sam view -F 0x0204 -o - \$mapping/\${name}/\${name}.whitelist.bam | 
+    awk 'BEGIN{OFS="\t"}{if (and(\$2,16) > 0) {print \$3,(\$4-1),(\$4-1+length(\$10)),"N","1000","-"} else {print \$3,(\$4-1),(\$4-1+length(\$10)),"N","1000","+"} }' | 
+    gzip -c > \$FragLenEst/\${name}.Filtered.tagAlign.gz 
+
+# >>>>>> Run ssp [PhantomPeaks] (Filtered)
+\$Rscript \$RunSPP \\
+    -s=-100:5:600 \\
+    -c=\$FragLenEst/\${name}.Filtered.tagAlign.gz -savp \\
+    -out=\$ssp/\${name}.Filtered.FragLenEst.tab 
+
+# >>>>>> fragmentLengthEstimate (Filtered)
+cat \$ssp/\${name}.Filtered.FragLenEst.tab |awk '{print \$3}'|cut -d ',' -f 1 > \$FragLenEst/\${name}.Filtered.FragLenEst.cat
+
+# >>>>>> Extract sub-nucleosomal fragments'
+\$sam view -H \$mapping/\${name}/\${name}.whitelist.bam > \$mapping/\${name}/\${name}.subNuc.sam
+
+\$sam view \$mapping/\${name}/\${name}.whitelist.bam | \\
+  awk '{if(sqrt(\$9*\$9)<100){print \$0}}' >> \$mapping/\${name}/\${name}.subNuc.sam
+
+\$sam view -S -b \$mapping/\${name}/\${name}.subNuc.sam > \$mapping/\${name}/\${name}.subNuc.bam
+
+# >>>>>> Summary Statistics (8) -- Subnucleosomal Fragments
+\$sam view -c \$mapping/\${name}/\${name}.subNuc.bam  > \$mapping/\${name}/SummaryStats08.txt
+
+# >>>>>> Obtain Tn5 footprint (1)BamToBed (2)perlBed (3)BedToBam
+\$Btools bamtobed -i \$mapping/\${name}/\${name}.whitelist.bam > \$mapping/\${name}/\${name}.whitelist.bed
+
+/home/edahi/download/code/ATACseq/Tn5_bed9bp_full.pl \$mapping/\${name}/\${name}.whitelist.bed \$mapping/\${name}/\${name}_Tn5footprint_unsort.bed
+
+\$Btools bedtobam -i \$mapping/\${name}/\${name}_Tn5footprint_unsort.bed -g \$genomesize | \\
+  \$sam sort - \$mapping/\$name/\${name}.Tn5footprint
+
+# >>>>>> Summary Statistics (9) -- Tn5 (9bp) Insertion sites
+\$sam view -c \$mapping/\${name}/\${name}.Tn5footprint.bam  > \$mapping/\${name}/SummaryStats09.txt
+
+# >>>>>> Summary Statistics (10) -- Usable Reads
+\$calc \${Ureads}*100/\${Treads} | cut -f2 -d\= | cut -c2-6 > \$mapping/\${name}/SummaryStats10.txt
+
+# >>>>>> Gather all summaries:
+echo 'SampleName,RawReads,Mapped_1st,Mapped_2nd,TotalMapped,chrM_Filter,Duplicated_Filter,Whitelist_Filter,Subnucleosomal,Tn5_9bp_InsertionSizes,UsableReadsFromSequenced' >  \$mapping/\${name}/Colnames.MappingStats.csv
+paste -d, \$mapping/\${name}/SummaryStats0[0-9].txt  \$mapping/\${name}/SummaryStats10.txt  >  \$mapping/\${name}/MappingStats.csv
+
+# >>>>>>Indexes of all files (1)Clean Mapping Results (2)SubNucleosomal (3)Tn5Footprint
+\$sam index \$mapping/\${name}/\${name}.whitelist.bam
+\$sam index \$mapping/\${name}/\${name}.subNuc.bam
+\$sam index \$mapping/\${name}/\${name}.Tn5footprint.bam
+
+# >>>>>> Calculate fragment length distributions
+\$py27 /home/edahi/download/code/ATACseq/Fragment_length_density_plot.py \$mapping/\${name}/\${name}.whitelist.bam \$name \$FragLenEst/\${name}_fragmentLengths
+
+# >>>>>> Generate Tag Directories
+mkdir -p  \$TagDirs/\${name}_whitelist \$TagDirs/\${name}_subNuc \$TagDirs/\${name}_Tn5
+\$makeTag \$TagDirs/\${name}_whitelist -keepAll -illuminaPE \$mapping/\${name}/\${name}.whitelist.bam    > \$TagDirs/\${name}_whitelist/maketagdir.txt
+\$makeTag \$TagDirs/\${name}_subNuc    -keepAll -illuminaPE \$mapping/\${name}/\${name}.subNuc.bam       > \$TagDirs/\${name}_subNuc/maketagdir.txt
+\$makeTag \$TagDirs/\${name}_Tn5       -keepAll -illuminaPE \$mapping/\${name}/\${name}.Tn5footprint.bam > \$TagDirs/\${name}_Tn5/maketagdir.txt
+
+# >>>>>> Generate BigWig files 
+\$makeBG   \$TagDirs/\${name}_whitelist -o auto -fsize 1e20 
+\$makeBG   \$TagDirs/\${name}_subNuc    -o auto -fsize 1e20 
+\$makeBG   \$TagDirs/\${name}_Tn5       -o auto -fsize 1e20 
+
+zcat \$TagDirs/\${name}_whitelist/\${name}_whitelist.ucsc.bedGraph.gz | tail -n+2 | sort -k1,1 -k2,2n > \$TagDirs/\${name}_whitelist/\${name}_whitelist.ucsc.bedGraph
+zcat \$TagDirs/\${name}_subNuc/\${name}_subNuc.ucsc.bedGraph.gz       | tail -n+2 | sort -k1,1 -k2,2n > \$TagDirs/\${name}_subNuc/\${name}_subNuc.ucsc.bedGraph
+zcat \$TagDirs/\${name}_Tn5/\${name}_Tn5.ucsc.bedGraph.gz             | tail -n+2 | sort -k1,1 -k2,2n > \$TagDirs/\${name}_Tn5/\${name}_Tn5.ucsc.bedGraph
+
+\$bg2bw \$TagDirs/\${name}_whitelist/\${name}_whitelist.ucsc.bedGraph \$BigWigs/\${name}.whitelist.bw mm10
+\$bg2bw \$TagDirs/\${name}_subNuc/\${name}_subNuc.ucsc.bedGraph       \$BigWigs/\${name}.subNuc.bw    mm10
+\$bg2bw \$TagDirs/\${name}_Tn5/\${name}_Tn5.ucsc.bedGraph             \$BigWigs/\${name}.Tn5.bw       mm10
+
+# >>> Add BigWigs to tracks file:
+echo track type=bigWig name=\${name}.whitelist description=\${name}.whitelist visibility=2 autoScale=off maxHeightPixels=40 viewLimits=0:200 color=10,10,10 graphType=bar bigDataUrl=http://informaticsdata.liai.org/NGS_analyses/ad_hoc/\${BigWigs/\\/mnt\/BioAdHoc\\//}/\${name}.whitelist.bw >> \${BigWigs}/ATAC_Tracks_Whitelist.txt
+echo track type=bigWig name=\${name}.subNuc    description=\${name}.subNuc    visibility=2 autoScale=off maxHeightPixels=40 viewLimits=0:200 color=0,0,255  graphType=bar bigDataUrl=http://informaticsdata.liai.org/NGS_analyses/ad_hoc/\${BigWigs/\\/mnt\/BioAdHoc\\//}/\${name}.subNuc.bw    >> \${BigWigs}/ATAC_Tracks_subNuc.txt
+echo track type=bigWig name=\${name}.Tn5       description=\${name}.Tn5       visibility=2 autoScale=off maxHeightPixels=40 viewLimits=0:200 color=0,255,0  graphType=bar bigDataUrl=http://informaticsdata.liai.org/NGS_analyses/ad_hoc/\${BigWigs/\\/mnt\/BioAdHoc\\//}/\${name}.Tn5_9bp.bw   >> \${BigWigs}/ATAC_Tracks_Tn5_9bp.txt
+
+# >>>>>> Call Peaks
+\$getPeaks \$TagDirs/\${name}_whitelist -style dnase -region -nfr -o \$peakDir/HOMER.\${name}.whitelist.peaks.txt
+\$getPeaks \$TagDirs/\${name}_subNuc    -style dnase -region -nfr -o \$peakDir/HOMER.\${name}.subNuc.peaks.txt
+\$getPeaks \$TagDirs/\${name}_Tn5       -style dnase -region -nfr -o \$peakDir/HOMER.\${name}.Tn5.peaks.txt
+
+\$MACS2 callpeak -t \$mapping/\${name}/\${name}.whitelist.bam    -f BAMPE  -n \$peakDir/MACS2.\${name}.whitelist -g mm -q 0.0001  --keep-dup all --nomodel --call-summits
+\$MACS2 callpeak -t \$mapping/\${name}/\${name}.subNuc.bam       -f BAMPE  -n \$peakDir/MACS2.\${name}.subNuc    -g mm -q 0.0001  --keep-dup all --nomodel --call-summits
+\$MACS2 callpeak -t \$mapping/\${name}/\${name}.Tn5footprint.bam -f BAM    -n \$peakDir/MACS2.\${name}.Tn5       -g mm -q 0.0001  --keep-dup all --nomodel --call-summits
+
+# >>>>>> Extend 200 the peak summits:
+awk -v OFS="\t" '{if(\$2 > 101){\$2 = \$2-100} else {\$2=1}; \$3=\$3+100; print \$_}' \$peakDir/MACS2.\${name}.whitelist_summits.bed > \$peakDir/MACS2.\${name}.whitelist_summits.200bp.bed
+awk -v OFS="\t" '{if(\$2 > 101){\$2 = \$2-100} else {\$2=1}; \$3=\$3+100; print \$_}' \$peakDir/MACS2.\${name}.subNuc_summits.bed    > \$peakDir/MACS2.\${name}.subNuc_summits.200bp.bed
+awk -v OFS="\t" '{if(\$2 > 101){\$2 = \$2-100} else {\$2=1}; \$3=\$3+100; print \$_}' \$peakDir/MACS2.\${name}.Tn5_summits.bed       > \$peakDir/MACS2.\${name}.Tn5_summits.200bp.bed
+
+# >>>>>> Remove Intermediate Files (if selected):
+if [ "\$keep" = "0" ]; then
+ rm \$mapping/\$name/\${name}*.sam
+ rm \$mapping/\$name/\${name}_unmapped*q
+ rm \$mapping/\${name}/\${name}*mapped*.bam
+ rm \$FragLenEst/\${name}.*.tagAlign.gz 
+ rm \$mapping/\${name}/\${name}*.bed
+ rm \$mapping/\${name}/SummaryStats0[0-9].txt
+ rm \$mapping/\${name}/gmon.out
+fi
+
+EOF
+  
+# >>> If selected, Run job
+if [ "$run" = "1" ]; then
+ echo "Running Job"
+ qsub $Jobs/${name}.PublicATACseq.mm10.v5.sh
+fi

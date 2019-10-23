@@ -1,0 +1,236 @@
+#!/bin/bash
+
+# ChIP-seq Standarized BaseSpace pipeline ChIPseq: Version -- 01.0
+# Author: Edahi Gonzalez-Avalos
+# Email:  edahi@lji.org
+# Date:   2019.10.08
+# Versions logs
+# v1.0
+
+# >>> Pipeline Version:
+Ver=1.0
+
+# >>> How to use the program:
+# /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/ChIP_like_pipeline_BaseSpace_v1 -q -r --ID PROXI --GenVer mm10 -m CutNrun --download /mnt/BioScratch/edahi/ChIP_like_BaseSpace/01.Download --analysis /mnt/BioAdHoc/Groups/RaoLab/Edahi/Projects/Hyungseok/02.CD8Tcells_Activation_wCD3_CD28/01.CutNrun/02.8_28_19_Hyungseok_CutandRun
+# H.Seo_011_cutNrun_19_10_09
+
+usage()
+{
+printf "
+usage: /mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/ChIP_like_pipeline_BaseSpace_v1    <PARAMETERS>
+\nReq:\t[-b | --ID          <#> ]  Basespace Project ID                         def:NONE -- Required Argument 
+\nReq:\t[-g | --Genome    <str> ]  Genome Version  mm10|hg38                    def:NONE -- Required Argument 
+\n\t[-m | --method    <str> ]  What is this? ChIP|MeDIP|hMeDIP|CutNrun          def:ChIPSeq
+\n\t[-d | --download  <str> ]  DownloadPath                                 def:/mnt/beegfs 
+\n\t[-a | --analysis  <str> ]  AnalysisPath                                 def:/mnt/BioScratch/edahi/ 
+\n\t[-b | --barcode     <#> ]  Barcode sequence length to remove --if any   def:0 
+\n\t[-t | --temp      <str> ]  TemporalPath                                 def:/mnt/BioScratch/edahi 
+\n\t[-q | --queue           ]  Set 'rao-exclusive' queue                    def:'default' 
+\n\t[-r | --run             ]  Run generated job                            def:no   
+\n\t[-k | --keep            ]  Keep intermediate results                    def:no   
+\n\t[     --seed        <#> ]  Seed                                         def:<RANDOM>
+\n\t[     --NoAnal          ]  Stop after Data download                     def:Off
+\n\t[     --cID             ]  BaseSpace's Client ID                        def:Edahi's
+\n\t[     --cSECRET         ]  BaseSpace's Client SECRET ID                 def:Edahi's
+\n\t[     --cTOKEN          ]  BaseSpace's Client Access TOKEN              def:Edahi's
+\n\t[-h | --help            ]  Show this message and exit\n\n"
+}
+
+# >>> Check if arguments given:
+if [ "$1" == "" ]; then
+  usage
+  exit 1
+fi
+
+# >>> Declare Variables
+         TEMP=/mnt/BioScratch/edahi
+    SeqMethod=ChIPSeq
+     raoqueue=0
+         keep=0
+        Stahp=0
+          run=0
+   RandomSeed=$RANDOM
+    CLIENT_ID=739a72400375493aac50a8aeb910c3eb
+CLIENT_SECRET=7e4fd758cef94f31845a51116f007373
+ ACCESS_TOKEN=7acae786b29b4a00ae883f6b80edaef5
+   Parameters=
+
+# >>> Assign arguments to variables
+while [ "$1" != "" ]; do
+    case $1 in
+        -b | --ID  )            shift
+                                pid=$1
+                                ;;
+        -g | --GenVer )         shift
+                                GenVer=$1
+								Parameters="${Parameters} --GenVer $1"
+                                ;;
+        -m | --method   )       shift
+                                SeqMethod=$1
+                                Parameters="${Parameters} --method $1"
+                                ;;
+        -d | --download )       shift
+                                download=$1
+                                Parameters="${Parameters} --download $1"
+                                ;;
+        -a | --analysis )       shift
+                                analysis=$1
+                                Parameters="${Parameters} --analysis $1"
+                                ;;
+        -b | --barcode )        shift
+                                barcode=$1
+                                Parameters="${Parameters} --barcode $1"
+                                ;;
+        -t | --temp )           shift
+                                temp=$1
+                                Parameters="${Parameters} --temp $1"
+                                ;;
+             --seed )           shift
+                                RandomSeed=$1
+                                Parameters="${Parameters} --seed $1"
+                                ;;
+        -q | --queue  )         raoqueue=1
+                                Parameters="${Parameters} -q"
+                                ;;
+        -k | --keep  )          keep=1
+                                Parameters="${Parameters} -k"
+                                ;;
+        -r | --run    )         run=1
+                                Parameters="${Parameters} -r"
+                                ;;
+             --NoAnal )         Stahp=1
+                                ;;
+             --cID )            shift
+                                CLIENT_ID=$1
+                                ;;
+             --cSECRET )        shift
+                                CLIENT_SECRET=$1
+                                ;;
+             --cTOKEN )         shift
+                                ACCESS_TOKEN=$1
+                                ;;
+        -h | --help )           usage
+                                exit
+                                ;;
+        * )                     printf "\n\t # >>>>>> An invalid argument was given: %s\n" $1  && usage
+                                exit 1
+    esac
+    shift
+done
+
+#  >>> Check if File surname was given:
+[[ $pid = "" ]] &&  printf "\n\tBaseSpace Project ID '--ID | -b' is a required argument. \n\tCheck --help for further assistance.\n\n" && exit
+# >>> Check if valid Genome version build was given:
+list=(mm10 hg38)
+Over(){ printf "\n\tProvide a valid genome build version \n\tCheck --help for further assistance\n\n" ; exit;}
+[[ ${list[@]} =~ (^|[[:space:]])$GenVer($|[[:space:]]) ]]  ||  Over
+[[ $GenVer =~ (^hg) ]] && Organism=Homo_sapiens ||  Organism=Mus_musculus
+
+# >>> Obtain parameters for script:
+[[ $raoqueue == "1" ]]  && raoqueue=rao-exclusive ||  raoqueue=default
+
+# >>> Set Barcode to zero if unspecified
+[[ $barcode == "" ]]  && Parameters="${Parameters} --barcode 0"
+[[ $barcode == "" ]]  && barcode=0
+
+# >>> Set Download folder if empty
+[[ $download == "" ]]  && Parameters="${Parameters} --download /mnt/BioScratch/edahi/${SeqMethod}/01.Download_${RandomSeed}"
+[[ $download == "" ]]  && download=/mnt/BioScratch/edahi/${SeqMethod}/01.Download_${RandomSeed}
+
+# >>> Set Analysis folder if empty
+[[ $analysis == "" ]]  && Parameters="${Parameters} --analysis /mnt/BioScratch/edahi/${SeqMethod}/02.Analysis_${RandomSeed} "
+[[ $analysis == "" ]]  && analysis=/mnt/BioScratch/edahi/${SeqMethod}/02.Analysis_${RandomSeed}
+
+# >>> Print Settings information:
+printf '\nBaseSpace ID #:\t%s\nSeq-Method:\t%s\nPBS Queue:\t%s\nOrganism:\t%s \nGenome Version:\t%s\nRandomSeed:\t%s\n\n' $pid $SeqMethod $raoqueue $Organism $GenVer $RandomSeed
+echo  Parameters Config: ${Parameters}
+echo  ''
+
+Jobs=$analysis/Jobs
+mkdir -p $Jobs
+cd $analysis
+
+cat > $Jobs/ChIPlike.v${Ver}.${SeqMethod}.${GenVer}.sh <<EOF
+#!/bin/bash -ex
+#PBS -N ChIPlike.v${Ver}.${SeqMethod}.${GenVer}.BaseSpace
+#PBS -l walltime=168:00:00
+#PBS -o $Jobs/ChIPlike.v${Ver}.${SeqMethod}.${GenVer}.out
+#PBS -e $Jobs/ChIPlike.v${Ver}.${SeqMethod}.${GenVer}.out
+#PBS -j oe
+#PBS -l nodes=1:ppn=1
+#PBS -M edahi@lji.org
+#PBS -l mem=10GB
+#PBS -m ae
+#PBS -q $raoqueue
+
+
+# From Script:
+  download=$download
+       pid=$pid
+  analysis=$analysis
+   TagDirs=\$analysis/03.TagDirectories
+     Track=\$analysis/08.Track
+      Jobs=\$analysis/Jobs
+     Stahp=$Stahp
+
+# >>>>>> Download data from BaseSpace
+[[ "\$pid" != "PROXI" ]] && perl /share/apps/BSDownload/BSDownload-Generic.pl -c $CLIENT_ID -s $CLIENT_SECRET -t $ACCESS_TOKEN  -o \$download -p \$pid
+
+# >>>>>> After Data downloaded, check if analysis is neccesary.
+[[ \$Stahp == "1" ]] && exit
+
+# Obtain dataset's names:
+nameS=(\$(basename -a \$(ls $download/* | grep L00._R1 | rev | cut -c22- | rev | uniq))) 
+
+# Iterate throught the names of the downloaded sets AND Collect qsub codes:
+CollectQsubs=
+
+# Build the analysis script for each file:
+for i in \${!nameS[@]}; do 
+ name=\$(echo \${nameS[\$i]} | sed 's@_S[0-9]\\+\$@@g');
+ echo \$name -- \${nameS[\$i]}
+ CollectQsubs=\${CollectQsubs}:\$(/mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/Bash/ChIP_like_pipeline_Existing_v1 -s \${nameS[\$i]} -n \$name -d \$download -a \$analysis $Parameters)
+done
+
+# >>> After all the jobs are completed:
+CollectQsubs=\${CollectQsubs#:}
+cat > \$Jobs/ChIPlike.v${Ver}.${SeqMethod}.${GenVer}.Hub.sh<<EOT
+#!/bin/bash -x
+#PBS -N ChIPlike.v${Ver}.${SeqMethod}.${GenVer}.Hub
+#PBS -l walltime=72:00:00
+#PBS -o $Jobs/ChIPlike.v${Ver}.${SeqMethod}.${GenVer}.Hub.out
+#PBS -e $Jobs/ChIPlike.v${Ver}.${SeqMethod}.${GenVer}.Hub.out
+#PBS -j oe
+#PBS -l nodes=1:ppn=2
+#PBS -M edahi@lji.org
+#PBS -l mem=20GB
+#PBS -m ae
+#PBS -q $raoqueue
+#PBS -W depend=afterok:\${CollectQsubs}
+
+# >>> Generate Multi Wig Tracks:
+ mMultiWig=/mnt/BioAdHoc/Groups/RaoLab/Edahi/00.Scripts/01.Downloaded/HOMER/bin/makeMultiWigHub.pl
+  analysis=$analysis
+   mapping=\$analysis/02.Mapping
+   TagDirs=\$analysis/03.TagDirectories
+     Track=\$analysis/08.Track
+
+# Recollect all the mapping stats:
+cat \\\$mapping/\${name}_Colnames.MappingStats.csv \\\$mapping/*_MappingStats.csv > \\\$mapping/MappingStats_All_Samples.csv
+
+# >>>>>> Build the multiWig Hub Track
+\\\$mMultiWig ChIPlike.v${Ver}.${SeqMethod}.${GenVer} ${GenVer} \
+ -url http://informaticsdata.liai.org/NGS_analyses/ad_hoc/\\\${Track/\/mnt\/BioAdHoc\//}/ \
+ -webdir \\\$Track \
+ -d \\\`ls \$TagDirs/* -d\\\`
+
+rm \\\$mapping/*MappingStats.csv \\\$mapping/*_MappingStats.csv \\\$analysis/gmon.out
+
+EOT
+
+qsub \$Jobs/ChIPlike.v${Ver}.${SeqMethod}.${GenVer}.Hub.sh
+
+EOF
+
+[[ $run == 1 ]] && qsub $Jobs/ChIPlike.v${Ver}.${SeqMethod}.${GenVer}.sh
+exit
