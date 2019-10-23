@@ -19,9 +19,10 @@ ATAC-Seq
 --------
 _Assay for Transposase-Accessible Chromatin followed by Sequencing_ yield genomic regions that are not wrapped by either nucleosomes or cellular elements, meaning that they are accessible for interaction with other molecules.
 
-[Go-To Analysis](https://github.com/Edahi/NGSDataAnalysis/tree/master/ATAC-Seq)
-
 <img src="/ATAC-Seq/Images/07.DARs.png">
+
+[Extended Analysis and code](https://github.com/Edahi/NGSDataAnalysis/tree/master/ATAC-Seq)
+
 
 Analysis  Overview:
 
