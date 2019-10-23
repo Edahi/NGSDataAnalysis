@@ -21,6 +21,8 @@ _Assay for Transposase-Accessible Chromatin followed by Sequencing_ yield genomi
 
 [Go-To Analysis](https://github.com/Edahi/NGSDataAnalysis/tree/master/ATAC-Seq)
 
+<img src="/ATAC-Seq/Images/07.DARs.png">
+
 Analysis  Overview:
 
 1. Generate Directories Framework
