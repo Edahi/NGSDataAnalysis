@@ -59,8 +59,9 @@ RNA-Seq
 -------
 RNA-Seq allows a cuantitative approach for the analysis of transcripts in bulk RNA from cells.
 
-<img src="/RNA-Seq/Images/07.MDS.png" width="700" height="300" "Is this a Title?">
-<img src="/RNA-Seq/Images/08.InteractiveDEGexploration.png" width="700" height="300" "I hope TF you are">
+<img src="/RNA-Seq/Images/07.MDS.png" width="700" height="300">
+
+<img src="/RNA-Seq/Images/08.InteractiveDEGexploration.png" width="700" height="300">
 
 [Extended Analysis and code](https://github.com/Edahi/NGSDataAnalysis/tree/master/RNA-Seq)
 
