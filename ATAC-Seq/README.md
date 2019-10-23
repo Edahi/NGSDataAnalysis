@@ -91,6 +91,17 @@ There are multiple ways to detect significant differences among a set of conditi
 
 ## Version changes:
 
+### (5.0.0) -- 2019/05/28
+- Added Blast analysis using no mappable reads
+- Changed the way I calculated the raw total reads
+- Changed remapping parameters to be more broad
+- Added the calculation of Usable Reads
+- Modified the way I gather the summary results
+- Moved the Peak calling section to the end
+- Changed the way I generate the bigWigs files (Now I used my custom script)
+- Modified How I call peaks with MACS2 to concentrate on the sumimts
+- Expand the summits to 200bp from the center
+
 ### (4.0.0) -- 2019/02/19
 - Added Blast analysis using no mappable reads (Contamination Assessment)
 - Change the way I calculated the raw total reads

@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# ATAC-seq Standarized pipeline mm10: Version -- 04
+# ATAC-seq Standarized pipeline mm10: Version -- 05
 # Author: Edahi Gonzalez-Avalos
 # Email:  edahi@lji.org
-# Date:   2019.02.19
+# Date:   2019.05.28
 # Versions logs
 # v5.
 #  Added Blast analysis using no mappable reads

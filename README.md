@@ -1,11 +1,12 @@
 # NGSDataAnalysis
+
 Welcome to my NGS Data Analysis script folder!
 During my PhD in Bioinformatics and Systems Biology at the University of California San Diego I was exposed to very diverse sequencing technologies routinarily. 
 Therefore it was an ideal senario that allowed me to write code for the automatization of the data analysis of most of these sequencing datasets.
 On this repository I have added the bash scripts that I wrote for each sequencing technology.
 
-Sequencing fodlers
-------------------
+## Sequencing folders
+
 - [ATAC-Seq](https://github.com/Edahi/NGSDataAnalysis/tree/master/ATAC-Seq)
 - [ChIP-like-Seq](https://github.com/Edahi/NGSDataAnalysis/tree/master/ChIP-like-Seq)
 - [CMS-IP-Seq](https://github.com/Edahi/NGSDataAnalysis/tree/master/CMS-IP-Seq)
@@ -14,6 +15,8 @@ Sequencing fodlers
 - [RNA-Seq](https://github.com/Edahi/NGSDataAnalysis/tree/master/RNA-Seq)
 - [WGB-Seq](https://github.com/Edahi/NGSDataAnalysis/tree/master/WGB-Seq)
 - [WG-Seq](https://github.com/Edahi/NGSDataAnalysis/tree/master/WG-Seq)
+
+## Overview of each sequencing technique
 
 ATAC-Seq
 --------
@@ -51,6 +54,50 @@ Analysis  Overview:
 24. Call Peaks fromo SubNuc
 25. Extend to 200bp the peak's summit
 26. Remove Intermediate Files 
+
+RNA-Seq
+-------
+RNA-Seq allows a cuantitative approach for the analysis of transcripts in bulk RNA from cells.
+
+<img src="/RNA-Seq/Images/07.MDS.png" =400x400>
+
+<img src="/ATAC-Seq/Images/08.InteractiveDEGexploration.png" =400x400>
+
+[Extended Analysis and code](https://github.com/Edahi/NGSDataAnalysis/tree/master/RNA-Seq)
+
+Analysis  Overview:
+
+_Pre-Differential Expression Analysis_.
+
+1. Generate Directories Framework
+2. Check if Paired-End data
+3. Obtain read length (Determine STAR reference)
+4. Merge lanes & rm barcodes (if any)
+5. FASTQC for downloaded file
+6. Map reads to tRNAs and rRNA (contamination estimation).
+7. STAR mapping
+8. Generate HOMER's TagDirectory
+9. Run RSeQC's analyses
+10. Generate Multi Wig Tracks
+11. Subreads' Feature Counts.
+12. Mapping stats recollection
+
+_Differential Expression Analysis_.
+
+1. Load multiple libraries and counts data.
+2. Establish conditions (from provided Config file)
+3. Obtain EntrezID for future annotation and add to main dataset
+4. Data Normalization:
+5. Visualization of the normalization proof and change effect.
+6. Interactive Samples Clustering 
+7. Differential Analysis Design
+8. Voom-Normalization (with graphs)
+9. Applyance of the model per pairs
+10. Heatmaps of the most Variable Genes
+11. Interactive Differential Expression Plots
+12. Genome Onthology 
+13. GO over-representation Upregulated
+
 
 ChIP-like-Seq
 -------------
@@ -155,46 +202,6 @@ The steps below detail the normalization method particular to this technique:
 6. Export the resulting BigWig for further analysis
 7. Report Total counts per step (sanity check).
 8. [MACS2] Call peaks in the Spiked-In normalized data.
-
-
-RNA-Seq
--------
-RNA-Seq allows a cuantitative approach for the analysis of transcripts in bulk RNA from cells.
-
-[Extended Analysis and code](https://github.com/Edahi/NGSDataAnalysis/tree/master/RNA-Seq)
-
-Analysis  Overview:
-
-_Pre-Differential Expression Analysis_.
-
-1. Generate Directories Framework
-2. Check if Paired-End data
-3. Obtain read length (Determine STAR reference)
-4. Merge lanes & rm barcodes (if any)
-5. FASTQC for downloaded file
-6. Map reads to tRNAs and rRNA (contamination estimation).
-7. STAR mapping
-8. Generate HOMER's TagDirectory
-9. Run RSeQC's analyses
-10. Generate Multi Wig Tracks
-11. Subreads' Feature Counts.
-12. Mapping stats recollection
-
-_Differential Expression Analysis_.
-
-1. Load multiple libraries and counts data.
-2. Establish conditions (from provided Config file)
-3. Obtain EntrezID for future annotation and add to main dataset
-4. Data Normalization:
-5. Visualization of the normalization proof and change effect.
-6. Interactive Samples Clustering 
-7. Differential Analysis Design
-8. Voom-Normalization (with graphs)
-9. Applyance of the model per pairs
-10. Heatmaps of the most Variable Genes
-11. Interactive Differential Expression Plots
-12. Genome Onthology 
-13. GO over-representation Upregulated
 
 
 WGB-Seq
