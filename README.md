@@ -67,7 +67,7 @@ RNA-Seq allows a cuantitative approach for the analysis of transcripts in bulk R
 
 Analysis  Overview:
 
-_Pre-Differential Expression Analysis_.
+___Pre-Differential Expression Analysis___:
 
 1. Generate Directories Framework
 2. Check if Paired-End data
@@ -82,7 +82,7 @@ _Pre-Differential Expression Analysis_.
 11. Subreads' Feature Counts.
 12. Mapping stats recollection
 
-_Differential Expression Analysis_.
+___Differential Expression Analysis___:
 
 1. Load multiple libraries and counts data.
 2. Establish conditions (from provided Config file)
