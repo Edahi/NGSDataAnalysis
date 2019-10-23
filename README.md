@@ -1,4 +1,4 @@
-#### NGSDataAnalysis
+# NGSDataAnalysis
 Welcome to my NGS Data Analysis script folder!
 During my PhD in Bioinformatics and Systems Biology at the University of California San Diego I was exposed to very diverse sequencing technologies rounarily. 
 Therefore it was an ideal experience that allowed me to write code for the automatization of the data analysis of most of these sequencing datasets.
@@ -10,32 +10,32 @@ _Assay for Transposase-Accessible Chromatin followed by Sequencing_ yield genomi
 
 Analysis  Overview:
 
-#### 1. Generate Directories Framework
-#### 2. Merge lanes & rm barcodes (if any).
-#### 3. FASTQC for downloaded file
-#### 4. 1st mapping (raw reads)
-#### 5. _trim\_galore_ for unmapped reads
-#### 6. FASTQC for cleaned Unmapped reads
-#### 7. 2nd mapping (filtered unmapped reads)
-#### 8. Get unmapped reads from 2nd round.
-#### 9. De-novo assembly from unmapped
-#### 10. Retrieval of top 3 longest assemblies
-#### 11. Blast on top three longest assemblies
-#### 12. Merging of mapping results
-#### 13. Remove chrM
-#### 14. Remove Duplicates
-#### 15. Remove Encode's Blacklist
-#### 16. Gather all mapping summaries
-#### 17. Extract Sub-Nucleosomal fragments
-#### 18. Obtain Tn5 footprint
-#### 19. Generate HOMER's TagDirectory
-#### 20. Generate BigWigs for SubNuc, Tn5 and whole mapping results
-#### 21. Add BigWigs to tracks file
-#### 22. Estimate fragment size
-#### 23. Explore PhantomPeaks
-#### 24. Call Peaks fromo SubNuc
-#### 25. Extend to 200bp the peak's summit
-#### 26. Remove Intermediate Files 
+1. Generate Directories Framework
+2. Merge lanes & rm barcodes (if any).
+3. FASTQC for downloaded file
+4. 1st mapping (raw reads)
+5. _trim\_galore_ for unmapped reads
+6. FASTQC for cleaned Unmapped reads
+7. 2nd mapping (filtered unmapped reads)
+8. Get unmapped reads from 2nd round.
+9. De-novo assembly from unmapped
+10. Retrieval of top 3 longest assemblies
+11. Blast on top three longest assemblies
+12. Merging of mapping results
+13. Remove chrM
+14. Remove Duplicates
+15. Remove Encode's Blacklist
+16. Gather all mapping summaries
+17. Extract Sub-Nucleosomal fragments
+18. Obtain Tn5 footprint
+19. Generate HOMER's TagDirectory
+20. Generate BigWigs for SubNuc, Tn5 and whole mapping results
+21. Add BigWigs to tracks file
+22. Estimate fragment size
+23. Explore PhantomPeaks
+24. Call Peaks fromo SubNuc
+25. Extend to 200bp the peak's summit
+26. Remove Intermediate Files 
 
 ChIP-like-Seq
 -------------
@@ -43,28 +43,28 @@ _Chromatin Immunoprecipitation followed by Sequencing_ (ChIP-Seq) and similar te
 
 Analysis overview:
 
-#### 1. Generate Directories Framework
-#### 2. check if Paired-End data
-#### 3. Merge lanes & rm barcodes (if any)
-#### 4. FASTQC for downloaded file
-#### 5. 1st mapping
-#### 6. Filter unmapped reads
-#### 7. _trim\_galore_ for unmapped reads
-#### 7. FASTQC for cleaned Unmapped reads
-#### 8. 2nd mapping
-#### 9. Get mapped reads
-#### 10. Merging of both mapping results
-#### 11. Remove chrM
-#### 12. Remove Duplicates
-#### 13. Remove Encode's Blacklist
-#### 14. Gather all mapping summaries
-#### 15. Generate HOMER's TagDirectory
-#### 16. Create BigWigs
-#### 17. Add BigWigs to tracks file:
-#### 18. Estimate fragment size
-#### 19. Explore PhantomPeaks
-#### 20. Call Peaks
-#### 21. Remove intermediary results
+1. Generate Directories Framework
+2. check if Paired-End data
+3. Merge lanes & rm barcodes (if any)
+4. FASTQC for downloaded file
+5. 1st mapping
+6. Filter unmapped reads
+7. _trim\_galore_ for unmapped reads
+8. FASTQC for cleaned Unmapped reads
+9. 2nd mapping
+10. Get mapped reads
+11. Merging of both mapping results
+12. Remove chrM
+13. Remove Duplicates
+14. Remove Encode's Blacklist
+15. Gather all mapping summaries
+16. Generate HOMER's TagDirectory
+17. Create BigWigs
+18. Add BigWigs to tracks file:
+19. Estimate fragment size
+20. Explore PhantomPeaks
+21. Call Peaks
+22. Remove intermediary results
 
 RNA-seq
 -------
@@ -74,34 +74,34 @@ Analysis overview:
 
 _Pre-Differential Expression Analysis_.
 
-#### 1. Generate Directories Framework
-#### 2. Check if Paired-End data
-#### 3. Obtain read length (Determine STAR reference)
-#### 4. Merge lanes & rm barcodes (if any)
-#### 5. FASTQC for downloaded file
-#### 6. Map reads to tRNAs and rRNA (contamination estimation).
-#### 7. STAR mapping
-#### 8. Generate HOMER's TagDirectory
-#### 9. Run RSeQC's analyses
-#### 10. Generate Multi Wig Tracks
-#### 11. Subreads' Feature Counts.
-#### 12. Mapping stats recollection
+1. Generate Directories Framework
+2. Check if Paired-End data
+3. Obtain read length (Determine STAR reference)
+4. Merge lanes & rm barcodes (if any)
+5. FASTQC for downloaded file
+6. Map reads to tRNAs and rRNA (contamination estimation).
+7. STAR mapping
+8. Generate HOMER's TagDirectory
+9. Run RSeQC's analyses
+10. Generate Multi Wig Tracks
+11. Subreads' Feature Counts.
+12. Mapping stats recollection
 
 _Differential Expression Analysis_.
 
-#### 1. Load multiple libraries and counts data.
-#### 2. Establish conditions (from provided Config file)
-#### 3. Obtain EntrezID for future annotation and add to main dataset
-#### 4. Data Normalization:
-#### 5. Visualization of the normalization proof and change effect.
-#### 6. Interactive Samples Clustering 
-#### 7. Differential Analysis Design
-#### 8. Voom-Normalization (with graphs)
-#### 9. Applyance of the model per pairs
-#### 10. Heatmaps of the most Variable Genes
-#### 11. Interactive Differential Expression Plots
-#### 12. Genome Onthology 
-#### 13. GO over-representation Upregulated
+1. Load multiple libraries and counts data.
+2. Establish conditions (from provided Config file)
+3. Obtain EntrezID for future annotation and add to main dataset
+4. Data Normalization:
+5. Visualization of the normalization proof and change effect.
+6. Interactive Samples Clustering 
+7. Differential Analysis Design
+8. Voom-Normalization (with graphs)
+9. Applyance of the model per pairs
+10. Heatmaps of the most Variable Genes
+11. Interactive Differential Expression Plots
+12. Genome Onthology 
+13. GO over-representation Upregulated
 
 CMS-IP-Seq
 ----------
@@ -109,19 +109,19 @@ _Cytosine-5-MethyleneSulfonate followed by Immunoprecipitation and Sequencing_ i
 
 Analysis overview:
 
-#### 1. Generate Directories Framework
-#### 2. check if Paired-End data
-#### 3. FASTQC for downloaded file
-#### 4. BSmap mapping
-#### 5. Separate lambda from genomic reads
-#### 6. For each, calculate Conversion Efficiency
-#### 7. Generate BAM files
-#### 8. Remove Duplicates
-#### 9. Remove Encode's Blacklist
-#### 10. Estimate fragment size
-#### 11. Explore PhantomPeaks
-#### 12. Get the methylation balls
-#### 13. MACS2 Call Peaks w/o input
+1. Generate Directories Framework
+2. check if Paired-End data
+3. FASTQC for downloaded file
+4. BSmap mapping
+5. Separate lambda from genomic reads
+6. For each, calculate Conversion Efficiency
+7. Generate BAM files
+8. Remove Duplicates
+9. Remove Encode's Blacklist
+10. Estimate fragment size
+11. Explore PhantomPeaks
+12. Get the methylation balls
+13. MACS2 Call Peaks w/o input
 
 WG-Seq
 ------
@@ -129,23 +129,23 @@ _Whole-Genome Sequencing_ allows for the analysis of single nucleotide variants,
 
 Analysis overview:
 
-#### 1. Generate Directories Framework
-#### 2. Merge lanes & rm barcodes (if any)
-#### 3. FASTQC for downloaded file
-#### 4. 1st [BWA] aligment (mapping).
-#### 5. Filter unmapped reads
-#### 6. _trim\_galore_ for unmapped reads
-#### 7. FASTQC for cleaned Unmapped reads
-#### 8. 2nd [BWA] aligment (mapping).
-#### 9. Merging of both mapping results
-#### 10. Remove Duplicates
-#### 11. Remove Encode's Blacklist
-#### 12. Remove Random chromosomes
-#### 13. Estimate fragment size
-#### 14. Explore PhantomPeaks
-#### 15. Generate HOMER's TagDirectory
-#### 16. Create BigWigs
-#### 17. Mapping stats recollection
+1. Generate Directories Framework
+2. Merge lanes & rm barcodes (if any)
+3. FASTQC for downloaded file
+4. 1st [BWA] aligment (mapping).
+5. Filter unmapped reads
+6. _trim\_galore_ for unmapped reads
+7. FASTQC for cleaned Unmapped reads
+8. 2nd [BWA] aligment (mapping).
+9. Merging of both mapping results
+10. Remove Duplicates
+11. Remove Encode's Blacklist
+12. Remove Random chromosomes
+13. Estimate fragment size
+14. Explore PhantomPeaks
+15. Generate HOMER's TagDirectory
+16. Create BigWigs
+17. Mapping stats recollection
 
 
 HMCP-Seq
@@ -163,21 +163,20 @@ Analysis overview:
 As described above, this data is then analyzed with the [ChIP-like pipeline](https://github.com/Edahi/NGSDataAnalysis#chip-like-seq) with the addition of Spike-Ins to the ref genome.
 The steps below detail the normalization method particular to this technique:
 
-#### 1. Separate HMCP Spike-in BAMs
-#### 2. Separate T4 Spike-in BAM
-#### 3. Separate hg38 (or mm10) Genome BAM
-#### 4. Generate windowed BigWigs [MEDIPs] for T4 and reference genome
-#### 5. Spike-In Normalization Factor w/INPUT data
-- For Input and Reference, calculate the RPM normalization factor and keep the reference's RPM factor apart.
-- Convert Input's and reference's BigWig coverage to RPM.
-- Subtract Input's from reference's RPM.
-- Reverse RPM scaling using the stored reference's RPM factor
-- Calculate the T4 Spike-in Exo-scaling factor
-- Scale Reference with the calculated Exo-factor
-
-#### 6. Export the resulting BigWig for further analysis
-#### 7. Report Total counts per step (sanity check).
-#### 8. [MACS2] Call peaks in the Spiked-In normalized data.
+1. Separate HMCP Spike-in BAMs
+2. Separate T4 Spike-in BAM
+3. Separate hg38 (or mm10) Genome BAM
+4. Generate windowed BigWigs [MEDIPs] for T4 and reference genome
+5. Spike-In Normalization Factor w/INPUT data
+	1. For Input and Reference, calculate the RPM normalization factor and keep the reference's RPM factor apart.
+	2. Convert Input's and reference's BigWig coverage to RPM.
+	3. Subtract Input's from reference's RPM.
+	4. Reverse RPM scaling using the stored reference's RPM factor
+	5. Calculate the T4 Spike-in Exo-scaling factor
+	6. Scale Reference with the calculated Exo-factor
+6. Export the resulting BigWig for further analysis
+7. Report Total counts per step (sanity check).
+8. [MACS2] Call peaks in the Spiked-In normalized data.
 
 
 GRO-Seq
@@ -186,15 +185,14 @@ _Global Run On followed by Sequencing_ allows the analysis of nacent RNA, that i
 
 Analysis overview:
 
-#### 1. Generate Directories Framework
+1. Generate Directories Framework
 - Currently functional for Single-End data
-
-#### 2. Merge lanes & rm barcodes (if any)
-#### 3. Remove Poly-A tails
-#### 4. FASTQC for downloaded file
-#### 5. [BWA] Alignment 
-#### 6. Generate HOMER's TagDirectory
-#### 7. Mapping stats recollection:
+2. Merge lanes & rm barcodes (if any)
+3. Remove Poly-A tails
+4. FASTQC for downloaded file
+5. [BWA] Alignment 
+6. Generate HOMER's TagDirectory
+7. Mapping stats recollection:
 
 The reason this particular pipeline is so simple is because after the HOMER tag directory, the downstream analysis really varies depending on the biological question.
 
