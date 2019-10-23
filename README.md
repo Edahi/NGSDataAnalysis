@@ -26,7 +26,7 @@ _Assay for Transposase-Accessible Chromatin followed by Sequencing_ yield genomi
 
 [Extended Analysis and code](https://github.com/Edahi/NGSDataAnalysis/tree/master/ATAC-Seq)
 
-Analysis  Overview:
+### Analysis  Overview:
 
 1. Generate Directories Framework
 2. Merge lanes & rm barcodes (if any).
@@ -65,7 +65,7 @@ RNA-Seq allows a cuantitative approach for the analysis of transcripts in bulk R
 
 [Extended Analysis and code](https://github.com/Edahi/NGSDataAnalysis/tree/master/RNA-Seq)
 
-Analysis  Overview:
+### Analysis  Overview:
 
 ___Pre-Differential Expression Analysis___:
 
@@ -105,7 +105,7 @@ _Chromatin Immunoprecipitation followed by Sequencing_ (ChIP-Seq) and similar te
 
 [Extended Analysis and code](https://github.com/Edahi/NGSDataAnalysis/tree/master/ChIP-like-Seq)
 
-Analysis  Overview:
+### Analysis  Overview:
 
 1. Generate Directories Framework
 2. check if Paired-End data
@@ -136,7 +136,7 @@ _Cytosine-5-MethyleneSulfonate followed by Immunoprecipitation and Sequencing_ i
 
 [Extended Analysis and code](https://github.com/Edahi/NGSDataAnalysis/tree/master/CMS-IP-Seq)
 
-Analysis  Overview:
+### Analysis  Overview:
 
 1. Generate Directories Framework
 2. check if Paired-End data
@@ -158,7 +158,7 @@ _Global Run On followed by Sequencing_ allows the analysis of nacent RNA, that i
 
 [Extended Analysis and code](https://github.com/Edahi/NGSDataAnalysis/tree/master/GRO-Seq)
 
-Analysis  Overview:
+### Analysis  Overview:
 
 1. Generate Directories Framework
 - Currently functional for Single-End data
@@ -183,7 +183,7 @@ The difference with [CMS-IP](https://github.com/Edahi/NGSDataAnalysis#cms-ip-seq
 
 [Extended Analysis and code](https://github.com/Edahi/NGSDataAnalysis/tree/master/HMCP-Seq)
 
-Analysis  Overview:
+### Analysis  Overview:
 
 As described above, this data is then analyzed with the [ChIP-like pipeline](https://github.com/Edahi/NGSDataAnalysis#chip-like-seq) with the addition of Spike-Ins to the ref genome.
 The steps below detail the normalization method particular to this technique:
@@ -213,7 +213,7 @@ Therefore, unless OxBS-Seq or TAB-Seq (none of them discussed here... yet) or an
 
 [Extended Analysis and code](https://github.com/Edahi/NGSDataAnalysis/tree/master/WGB-Seq)
 
-Analysis  Overview:
+### Analysis  Overview:
 
 1. Generate Directories Framework
 - Currently functional for Paired-End data only (haven't seen a SE WGBS data yet).
@@ -234,7 +234,7 @@ _Whole-Genome Sequencing_ allows for the analysis of single nucleotide variants,
 
 [Extended Analysis and code](https://github.com/Edahi/NGSDataAnalysis/tree/master/WG-Seq)
 
-Analysis  Overview:
+### Analysis  Overview:
 
 1. Generate Directories Framework
 2. Merge lanes & rm barcodes (if any)
